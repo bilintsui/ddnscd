@@ -1,0 +1,1 @@
+{"log":"/var/log/ddnscd.log","tick":600,"lookup4":"https://api4.xmrx1999.com/ip.php","lookup6":"https://api6.xmrx1999.com/ip.php","root":"","domain":"","username":"","password":""}

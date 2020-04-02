@@ -20,16 +20,16 @@ ddnscd <config_file>
 
 ## Configs
 ### Example(you should delete all linefeeds in final configurations)
-{
- "log":"/var/log/ddnscd.log",
- "tick":600,
- "lookup4":"",
- "lookup6":"",
- "root":"",
- "domain":"",
- "username":"",
- "password":""
- }
+{<br/>
+ "log":"/var/log/ddnscd.log",<br/>
+ "tick":600,<br/>
+ "lookup4":"",<br/>
+ "lookup6":"",<br/>
+ "root":"",<br/>
+ "domain":"",<br/>
+ "username":"",<br/>
+ "password":""<br/>
+ }<br/>
  * log: The path which you logs writes into.
  * tick: Integer in second. The frequency of program to check your current ip. 600 for check it every 10 minutes.
  * lookup4: A URL which provides your public IP(IPv4), it should return IP only.

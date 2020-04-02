@@ -1,7 +1,7 @@
 # ddnscd
-Dynamic DNS Client Daemon<br/>
-A Daemonized Client for DDNS Deployment.<br/>
-**This program is only support cloudflare now.**
+>**Dynamic DNS Client Daemon**<br/>
+>**A Daemonized Client for DDNS Deployment.**<br/>
+>**This program is only support cloudflare now.**
 
 ## Requirements
 * Linux

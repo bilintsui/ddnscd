@@ -12,7 +12,7 @@ A Daemonized Client for DDNS Deployment.
 ## Files
 * ddnscd: Main program.
 * ddnscd.service.example: Example of Service Unit file for systemd.
-* config.json: config file of ddnscd.
+* config.json.example: config file of ddnscd.
 
 ## Usage
 ddnscd <config_file>

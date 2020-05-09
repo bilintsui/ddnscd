@@ -6,7 +6,7 @@ $file_config=$ARGV[0];
 chomp($progname=readpipe("basename $0"));
 if(!$file_config)
 {
-	die ("Dynamic DNS Client Daemon v1.1\nUsage: $progname config_file\n\n\tconfig_file\tConfiguration in JSON form.\n\nhttps://github.com/bilintsui/ddnscd\n(C) 2020 Bilin Tsui. Licensed with GNU GPL v3.\n");
+	die ("Dynamic DNS Client Daemon v1.2(beta1)\nUsage: $progname config_file\n\n\tconfig_file\tConfiguration in JSON form.\n\nhttps://github.com/bilintsui/ddnscd\n(C) 2020 Bilin Tsui. Licensed with GNU GPL v3.\n");
 }
 if(!(-e $file_config))
 {
@@ -17,6 +17,7 @@ chomp($raw_config=<CONF>);
 close CONF;
 $decoded_config=decode_json($raw_config);
 $config_log=$decoded_config->{log};
+$config_loglevel=$decoded_config->{loglevel};
 $config_daemon=$decoded_config->{tick};
 $config_iplookup=$decoded_config->{lookup4};
 $config_ip6lookup=$decoded_config->{lookup6};
@@ -24,9 +25,6 @@ $config_rootdomain=$decoded_config->{root};
 $config_deployname=$decoded_config->{domain};
 $config_username=$decoded_config->{username};
 $config_password=$decoded_config->{password};
-
-## Logging Processing
-open LOGFD,">>$config_log";
 
 ## Function Block
 sub cloudflare_zid_lookup
@@ -121,6 +119,26 @@ sub ip_lookup
 	}
 	return -1;
 }
+sub log_process
+{
+	my($level,$message)=@_;
+	open LOGFD,">>$config_log";
+	my($nowtime);
+	chomp($nowtime=readpipe("date '+[%F %T %Z]'"));
+	my($maxlevel)=$config_loglevel;
+#	if(!$maxlevel)
+#	{
+#		$maxlevel=1;
+#	}
+#	print "$level,$maxlevel";
+#	print '.';
+#	if($level<=$maxlevel)
+#	{
+		print $message;
+		print LOGFD "$nowtime $message";
+#	}
+	close LOGFD;
+}
 
 ## Main Process
 $zid=cloudflare_zid_lookup($config_username,$config_password,$config_rootdomain);
@@ -170,19 +188,16 @@ while(1)
 			my($response)=cloudflare_dns_update($config_username,$config_password,$zid,$rid,$rtype,$config_deployname,$lip);
 			if($response==0)
 			{
-				print "${config_deployname}\t${rtype}\tUPDATE\t${rip} ==> ${lip}\n";
-				print LOGFD "${config_deployname}\t${rtype}\tUPDATE\t${rip} ==> ${lip}\n";
+				log_process(1,"${config_deployname}\tUPDATE\t${rip} ==> ${lip}\n");
 			}
 			else
 			{
-				print "${config_deployname}\t${rtype}\tFAILED\t${rip} ==> ${lip}\n";
-				print LOGFD "${config_deployname}\t${rtype}\tFAILED\t${rip}\n";
+				log_process(0,"${config_deployname}\tFAILED\t${rip} ==> ${lip}\n");
 			}
 		}
 		else
 		{
-			print "${config_deployname}\t${rtype}\tIGNORE\t${rip}\n";
-			print LOGFD "${config_deployname}\t${rtype}\tIGNORE\t${rip}\n";
+			log_process(2,"${config_deployname}\tIGNORE\t${rip}\n");
 		}
 	}
 	sleep($config_daemon);

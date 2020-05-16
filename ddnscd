@@ -1,38 +1,61 @@
 #! /usr/bin/env perl
 use JSON;
 
-## Config Processing
+## Pre Processing
 $file_config=$ARGV[0];
 chomp($progname=readpipe("basename $0"));
 if(!$file_config)
 {
-	die ("Dynamic DNS Client Daemon v1.2(beta1)\nUsage: $progname config_file\n\n\tconfig_file\tConfiguration in JSON form.\n\nhttps://github.com/bilintsui/ddnscd\n(C) 2020 Bilin Tsui. Licensed with GNU GPL v3.\n");
+	die ("Dynamic DNS Client Daemon v1.2(beta2)\nUsage: $progname config_file\n\n\tconfig_file\tConfiguration in JSON form.\n\nhttps://github.com/bilintsui/ddnscd\n(C) 2020 Bilin Tsui. Licensed with GNU GPL v3.\n");
 }
 if(!(-e $file_config))
 {
 	die ("Error: Configuration file \"$file_config\" don't exist.\n");
 }
-open CONF,"<$file_config";
-chomp($raw_config=<CONF>);
-close CONF;
-$decoded_config=decode_json($raw_config);
-$config_log=$decoded_config->{log};
-$config_loglevel=$decoded_config->{loglevel};
-$config_daemon=$decoded_config->{tick};
-$config_iplookup=$decoded_config->{lookup4};
-$config_ip6lookup=$decoded_config->{lookup6};
-$config_rootdomain=$decoded_config->{root};
-$config_deployname=$decoded_config->{domain};
-$config_username=$decoded_config->{username};
-$config_password=$decoded_config->{password};
 
-## Function Block
+## Function Block 1
+sub json_preprocess
+{
+	chomp(my(@source)=@_);
+	my($result)='';
+	foreach $recline(@source)
+	{
+		$recline=~s/^\s+//g;
+		$recline=~s/\s+$//g;
+		$result=$result.$recline;
+	}
+	return $result;
+}
+sub json_curl
+{
+	my($command)=@_;
+	my(@response)=();
+	my($trycount)=0;
+	do
+	{
+		@response=readpipe($command);
+		$trycount++;
+	} while((!@response)&&($trycount<=3));
+	my($processed)=json_preprocess(@response);
+	my($result)=decode_json($processed);
+	return $result;
+}
+sub json_configload
+{
+	my($filename)=@_;
+	open CONF,"<$filename";
+	my(@config_preraw)=();
+	chomp(@configs_preraw=<CONF>);
+	close CONF;
+	my($configs_raw)=json_preprocess(@configs_preraw);
+	my($configs)=decode_json($configs_raw);
+	return $configs;
+}
 sub cloudflare_zid_lookup
 {
 	my($username,$password,$update_rootdomain)=@_;
 	my($return)='';
-	my($zones)=readpipe('curl -s -X GET "https://api.cloudflare.com/client/v4/zones" -H "Content-Type:application/json" -H "X-Auth-Key:'.$password.'" -H "X-Auth-Email:'.$username.'"');
-	my($decoded_json)=decode_json($zones);
+	my($decoded_json)=json_curl('curl -s -X GET "https://api.cloudflare.com/client/v4/zones" -H "Content-Type:application/json" -H "X-Auth-Key:'.$password.'" -H "X-Auth-Email:'.$username.'"');
 	my($zones_success)=$decoded_json->{success};
 	if(!$zones_success)
 	{
@@ -56,14 +79,7 @@ sub cloudflare_record_lookup
 {
 	my($username,$password,$update_domain,$zone_id)=@_;
 	my($return)=();
-	my(@records_raw)=readpipe('curl -s -X GET "https://api.cloudflare.com/client/v4/zones/'.$zone_id.'/dns_records?name='.$update_domain.'" -H "Content-Type:application/json" -H "X-Auth-Key:'.$password.'" -H "X-Auth-Email:'.$username.'"');
-	my($records)='';
-	foreach $rec_records_raw(@records_raw)
-	{
-		$rec_records_raw=~s/^\s+//g;
-		$records=$records.$rec_records_raw;
-	}
-	my($decoded_json)=decode_json($records);
+	my($decoded_json)=json_curl('curl -s -X GET "https://api.cloudflare.com/client/v4/zones/'.$zone_id.'/dns_records?name='.$update_domain.'" -H "Content-Type:application/json" -H "X-Auth-Key:'.$password.'" -H "X-Auth-Email:'.$username.'"');
 	my($records_success)=$decoded_json->{success};
 	if(!$records_success)
 	{
@@ -92,8 +108,7 @@ sub cloudflare_dns_update
 {
 	my($username,$password,$zid,$rid,$type,$update_domain,$new_ip)=@_;
 	my($execstr)='curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/'.$zid.'/dns_records/'.$rid.'" -H "Content-Type:application/json" -H "X-Auth-Key:'.$password.'" -H "X-Auth-Email:'.$username.'" --data \'{"type":"'.$type.'","name":"'.$update_domain.'","content":"'.$new_ip.'"}\'';
-	my($response)=readpipe($execstr);
-	my($decoded_json)=decode_json($response);
+	my($decoded_json)=json_curl($execstr);
 	my($response_success)=$decoded_json->{success};
 	if(!$response_success)
 	{
@@ -104,6 +119,20 @@ sub cloudflare_dns_update
 		return 0;
 	}
 }
+
+## Config Processing
+$decoded_config=json_configload($file_config);
+$config_log=$decoded_config->{log};
+$config_loglevel=$decoded_config->{loglevel};
+$config_daemon=$decoded_config->{tick};
+$config_iplookup=$decoded_config->{lookup4};
+$config_ip6lookup=$decoded_config->{lookup6};
+$config_rootdomain=$decoded_config->{root};
+$config_deployname=$decoded_config->{domain};
+$config_username=$decoded_config->{username};
+$config_password=$decoded_config->{password};
+
+## Function Block 2 (Depended with Configuration Loaded)
 sub ip_lookup
 {
 	my($type,$domain)=@_;

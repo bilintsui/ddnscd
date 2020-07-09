@@ -1,40 +1,112 @@
-#! /usr/bin/env perl
+#! /usr/bin/perl
+use File::Basename;
 use JSON;
+use POSIX;
+$|=1;
 
-## Config Processing
+## Pre Processing
 $file_config=$ARGV[0];
-chomp($progname=readpipe("basename $0"));
+chomp($progname=basename($0));
 if(!$file_config)
 {
-	die ("Dynamic DNS Client Daemon v1.1\nUsage: $progname config_file\n\n\tconfig_file\tConfiguration in JSON form.\n\nhttps://github.com/bilintsui/ddnscd\n(C) 2020 Bilin Tsui. Licensed with GNU GPL v3.\n");
+	die ("Dynamic DNS Client Daemon v1.2(beta5)\nUsage: $progname config_file\n\n\tconfig_file\tConfiguration in JSON form.\n\nhttps://github.com/bilintsui/ddnscd\n(C) 2020 Bilin Tsui. Licensed with GNU GPL v3.\n");
 }
 if(!(-e $file_config))
 {
 	die ("Error: Configuration file \"$file_config\" don't exist.\n");
 }
-open CONF,"<$file_config";
-chomp($raw_config=<CONF>);
-close CONF;
-$decoded_config=decode_json($raw_config);
-$config_log=$decoded_config->{log};
-$config_daemon=$decoded_config->{tick};
-$config_iplookup=$decoded_config->{lookup4};
-$config_ip6lookup=$decoded_config->{lookup6};
-$config_rootdomain=$decoded_config->{root};
-$config_deployname=$decoded_config->{domain};
-$config_username=$decoded_config->{username};
-$config_password=$decoded_config->{password};
 
-## Logging Processing
-open LOGFD,">>$config_log";
-
-## Function Block
+## Function Block 1
+sub mkfork
+{
+	my($pidfile)=@_;
+	if(!$pidfile)
+	{
+		die("Error: Missing \"pidfile\" option in your configuration file.\n");
+	}
+	if(-e $pidfile)
+	{
+		open OLDPID,"<$pidfile";
+		chomp($oldpid=<OLDPID>);
+		close OLDPID;
+		if(-e "/proc/$oldpid/cmdline")
+		{
+			open OLDCOMM,"/proc/$oldpid/cmdline";
+			chomp($oldcomm=<OLDCOMM>);
+			close OLDCOMM;
+			if($oldcomm=~/$progname/)
+			{
+				die("Error: A formerly process is still running. PID: $oldpid.\n");
+			}
+		}
+	}
+	if(!(-W dirname($pidfile)))
+	{
+		die("Error: Cannot write PID to ${pidfile}, permission denied.\n");
+	}
+	my($pid)=fork();
+	if(!(defined($pid)))
+	{
+		die("Error: Forking failed.\n");
+	}
+	if($pid)
+	{
+		open PIDFD, ">$pidfile";
+		print PIDFD $pid;
+		close PIDFD;
+		print "Started Dynamic DNS Client Daemon, PID: $pid.\n";
+		exit(0);
+	}
+	setpgrp();
+	setsid();
+	chdir("/");
+	umask(0);
+	close STDERR;
+	close STDOUT;
+	close STDIN;
+}
+sub json_preprocess
+{
+	chomp(my(@source)=@_);
+	my($result)='';
+	foreach $recline(@source)
+	{
+		$recline=~s/^\s+//g;
+		$recline=~s/\s+$//g;
+		$result=$result.$recline;
+	}
+	return $result;
+}
+sub json_curl
+{
+	my($command)=@_;
+	my(@response)=();
+	my($trycount)=0;
+	do
+	{
+		@response=readpipe($command);
+		$trycount++;
+	} while((!@response)&&($trycount<=3));
+	my($processed)=json_preprocess(@response);
+	my($result)=decode_json($processed);
+	return $result;
+}
+sub json_configload
+{
+	my($filename)=@_;
+	open CONF,"<$filename";
+	my(@config_preraw)=();
+	chomp(@configs_preraw=<CONF>);
+	close CONF;
+	my($configs_raw)=json_preprocess(@configs_preraw);
+	my($configs)=decode_json($configs_raw);
+	return $configs;
+}
 sub cloudflare_zid_lookup
 {
 	my($username,$password,$update_rootdomain)=@_;
 	my($return)='';
-	my($zones)=readpipe('curl -s -X GET "https://api.cloudflare.com/client/v4/zones" -H "Content-Type:application/json" -H "X-Auth-Key:'.$password.'" -H "X-Auth-Email:'.$username.'"');
-	my($decoded_json)=decode_json($zones);
+	my($decoded_json)=json_curl('curl -s -X GET "https://api.cloudflare.com/client/v4/zones" -H "Content-Type:application/json" -H "X-Auth-Key:'.$password.'" -H "X-Auth-Email:'.$username.'"');
 	my($zones_success)=$decoded_json->{success};
 	if(!$zones_success)
 	{
@@ -58,44 +130,28 @@ sub cloudflare_record_lookup
 {
 	my($username,$password,$update_domain,$zone_id)=@_;
 	my($return)=();
-	my(@records_raw)=readpipe('curl -s -X GET "https://api.cloudflare.com/client/v4/zones/'.$zone_id.'/dns_records?name='.$update_domain.'" -H "Content-Type:application/json" -H "X-Auth-Key:'.$password.'" -H "X-Auth-Email:'.$username.'"');
-	my($records)='';
-	foreach $rec_records_raw(@records_raw)
-	{
-		$rec_records_raw=~s/^\s+//g;
-		$records=$records.$rec_records_raw;
-	}
-	my($decoded_json)=decode_json($records);
+	my($decoded_json)=json_curl('curl -s -X GET "https://api.cloudflare.com/client/v4/zones/'.$zone_id.'/dns_records?name='.$update_domain.'" -H "Content-Type:application/json" -H "X-Auth-Key:'.$password.'" -H "X-Auth-Email:'.$username.'"');
 	my($records_success)=$decoded_json->{success};
 	if(!$records_success)
 	{
 		return -1;
 	}
-	$return->{count}=$decoded_json->{result_info}->{count};
-	my($record_count)=($decoded_json->{result_info}->{count})-1;
-	my($rec_record_count)=0;
-	my($push_record_count)=0;
-	for($rec_record_count=0;$rec_record_count<=$record_count;$rec_record_count++)
+	my($results)=$decoded_json->{result};
+	foreach $rec_result(@{$results})
 	{
-		my($rec_record_id)=$decoded_json->{result}->[$rec_record_count]->{id};
-		my($rec_record_type)=$decoded_json->{result}->[$rec_record_count]->{type};
-		my($rec_record_ip)=$decoded_json->{result}->[$rec_record_count]->{content};
-		if(($rec_record_type eq 'A')||($rec_record_type eq 'AAAA'))
-		{
-			$return->{data}->[$push_record_count]->{id}=$rec_record_id;
-			$return->{data}->[$push_record_count]->{type}=$rec_record_type;
-			$return->{data}->[$push_record_count]->{ip}=$rec_record_ip;
-			$push_record_count++;
-		}
+		my($result_single)=();
+		$result_single->{id}=$rec_result->{id};
+		$result_single->{ip}=$rec_result->{content};
+		$result_single->{type}=$rec_result->{type};
+		push @{$return}, $result_single;
 	}
-	return encode_json($return);
+	return $return;
 }
 sub cloudflare_dns_update
 {
 	my($username,$password,$zid,$rid,$type,$update_domain,$new_ip)=@_;
 	my($execstr)='curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/'.$zid.'/dns_records/'.$rid.'" -H "Content-Type:application/json" -H "X-Auth-Key:'.$password.'" -H "X-Auth-Email:'.$username.'" --data \'{"type":"'.$type.'","name":"'.$update_domain.'","content":"'.$new_ip.'"}\'';
-	my($response)=readpipe($execstr);
-	my($decoded_json)=decode_json($response);
+	my($decoded_json)=json_curl($execstr);
 	my($response_success)=$decoded_json->{success};
 	if(!$response_success)
 	{
@@ -106,9 +162,21 @@ sub cloudflare_dns_update
 		return 0;
 	}
 }
+
+## Config Processing
+$decoded_config=json_configload($file_config);
+$config_runmode=$decoded_config->{runmode};
+$config_log=$decoded_config->{log};
+$config_loglevel=$decoded_config->{loglevel};
+$config_iplookup=$decoded_config->{lookup4};
+$config_ip6lookup=$decoded_config->{lookup6};
+$config_deploys=$decoded_config->{deploys};
+
+## Function Block 2 (Depended with Configuration Loaded)
+
 sub ip_lookup
 {
-	my($type,$domain)=@_;
+	my($type)=@_;
 	if($type eq 'A')
 	{
 		my($address)=readpipe('curl -s '.$config_iplookup);
@@ -121,69 +189,148 @@ sub ip_lookup
 	}
 	return -1;
 }
-
-## Main Process
-$zid=cloudflare_zid_lookup($config_username,$config_password,$config_rootdomain);
-if($zid==-1)
+sub log_process
 {
-	die("Error: Can't get a success response, please check your account or it just a temporary failure.\n");
-}
-if($zid eq '')
-{
-	die("Error: Can't find Zone record(s) associated with $config_rootdomain\n");
-}
-while(1)
-{
-	$records_raw=cloudflare_record_lookup($config_username,$config_password,$config_deployname,$zid);
-	if($records_raw==-1)
+	my($level,$message)=@_;
+	open LOGFD,">>$config_log";
+	my($nowtime);
+	chomp($nowtime=readpipe("date '+[%F %T %Z]'"));
+	my($maxlevel)=$config_loglevel;
+	if(!(defined($maxlevel)))
 	{
-		die("Error: Can't get a success response, please check your account or it just a temporary failure.\n");
+		$maxlevel=1;
 	}
-	$records_decoded=decode_json($records_raw);
-	$records_count=($records_decoded->{count}-1);
-	if($records_count==-1)
+	else
 	{
-		die("Error: Can't find DNS record(s) associated with $config_deployname\n");
-	}
-	for($rec_records_count=0;$rec_records_count<=$records_count;$rec_records_count++)
-	{
-		$rid=$records_decoded->{data}->[$rec_records_count]->{id};
-		$rtype=$records_decoded->{data}->[$rec_records_count]->{type};
-		$rip=$records_decoded->{data}->[$rec_records_count]->{ip};
-		$lip=-1;
-		$failcount=0;
-		while($lip==-1)
+		if(!($maxlevel=~/^\d+$/))
 		{
-			$lip=ip_lookup($rtype,$config_deployname);
-			if($failcount>=8)
-			{
-				last;
-			}
-			$failcount++;
-		}
-		if($failcount>=8)
-		{
-			next;
-		}
-		if($rip ne $lip)
-		{
-			my($response)=cloudflare_dns_update($config_username,$config_password,$zid,$rid,$rtype,$config_deployname,$lip);
-			if($response==0)
-			{
-				print "${config_deployname}\t${rtype}\tUPDATE\t${rip} ==> ${lip}\n";
-				print LOGFD "${config_deployname}\t${rtype}\tUPDATE\t${rip} ==> ${lip}\n";
-			}
-			else
-			{
-				print "${config_deployname}\t${rtype}\tFAILED\t${rip} ==> ${lip}\n";
-				print LOGFD "${config_deployname}\t${rtype}\tFAILED\t${rip}\n";
-			}
+			$maxlevel=1;
 		}
 		else
 		{
-			print "${config_deployname}\t${rtype}\tIGNORE\t${rip}\n";
-			print LOGFD "${config_deployname}\t${rtype}\tIGNORE\t${rip}\n";
+			if(($maxlevel<0)||($maxlevel>2))
+			{
+				$maxlevel=1;
+			}
 		}
 	}
-	sleep($config_daemon);
+	if($level<=$maxlevel)
+	{
+		print $message;
+		print LOGFD "$nowtime $message";
+	}
+	close LOGFD;
+}
+sub cloudflare_apply
+{
+	my(@arguments)=@_;
+	my($root)=shift @arguments;
+	my($username)=shift @arguments;
+	my($password)=shift @arguments;
+	my(@deploy)=@arguments;
+	$zid=cloudflare_zid_lookup($username,$password,$root);
+	if($zid==-1)
+	{
+		log_process(0,"CF4_FINDZID(${root}): Not a vaild response, please check your account or it just a temporary failure.\n");
+	}
+	if($zid eq '')
+	{
+		log_process(0,"CF4_FINDZID(${root}): Cannot find ${root} zone associated with this accountant.\n");
+	}
+	foreach $recdeploy(@deploy)
+	{
+		my($realdomain)='';
+		if(($recdeploy ne '@')&&($recdeploy ne ''))
+		{
+			$realdomain="${recdeploy}.${root}";
+		}
+		else
+		{
+			$realdomain="${root}";
+		}
+		my($records)=cloudflare_record_lookup($username,$password,$realdomain,$zid);
+		if($records==-1)
+		{
+			log_process(0,"CF4_FINDREC(${realdomain}): Not a vaild response, please check your account or it just a temporary failure.\n");
+		}
+		if(!@{$records})
+		{
+			log_process(0,"CF4_FINDRID(${realdomain}): Cannot find any existing A/AAAA DNS record.\n");
+		}
+		foreach $rec_record(@{$records})
+		{
+			$rid=$rec_record->{id};
+			$rtype=$rec_record->{type};
+			$rip=$rec_record->{ip};
+			$lip=-1;
+			$failcount=0;
+			while($lip==-1)
+			{
+				$lip=ip_lookup($rtype);
+				if($failcount>=8)
+				{
+					last;
+				}
+				$failcount++;
+			}
+			if($failcount>=8)
+			{
+				log_process(0,"CF4_LOOKUP(${realdomain} - ${rtype}): Cannot lookup a vaild IP for current client, max tries reached.\n");
+				next;
+			}
+			if($rip ne $lip)
+			{
+				my($response)=cloudflare_dns_update($username,$password,$zid,$rid,$rtype,$realdomain,$lip);
+				if($response==0)
+				{
+					log_process(1,"CF4_UPDATE(${realdomain} - ${rtype}): Updated record from ${rip} to ${lip}.\n");
+				}
+				else
+				{
+					log_process(0,"CF4_UPDATE(${realdomain} - ${rtype}): Failed to update record.\n");
+				}
+			}
+			else
+			{
+				log_process(2,"CF4_UPDATE(${realdomain} - ${rtype}): IP not changed, ignored.\n");
+			}
+		}
+	}
+}
+sub cloudflare_run
+{
+	foreach $rec_deploys(@{$config_deploys})
+	{
+		my($config_root)=$rec_deploys->{root};
+		my($config_username)=$rec_deploys->{username};
+		my($config_password)=$rec_deploys->{password};
+		my(@config_deploy)=@{$rec_deploys->{deploy}};
+		cloudflare_apply($config_root,$config_username,$config_password,@config_deploy);
+	}
+}
+
+## Main Process
+if($config_runmode eq 'single')
+{
+	cloudflare_run;
+}
+else
+{
+	if(!(($config_runmode eq 'simple')||($config_runmode eq 'forking')))
+	{
+		die("Error: Missing or invaild \"runmode\" option in your configuration file.\n");
+	}
+	else
+	{
+		$config_daemon=$decoded_config->{tick};
+		if($config_runmode eq 'forking')
+		{
+			mkfork($decoded_config->{pidfile});
+		}
+		while(1)
+		{
+			cloudflare_run;
+			sleep($config_daemon);
+		}
+	}
 }

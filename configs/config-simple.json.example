@@ -1,8 +1,5 @@
 {
-	"runmode":"single", # Run ddnscd only once.
 	"runmode":"simple",	# Run ddnscd as a normal program.
-	"runmode":"forking",	# Run ddnscd as a daemon.
-	"pidfile":"/run/ddnscd.pid",	# Optional, required when runmode=forking.
 	"log":"/var/log/ddnscd.log",	# Filename which logs saved to.
 	"loglevel":1,	# Optional, default 1. 0: Errors only; 1: Errors and Updates; 2: All messages.
 	"tick":600,	# Optional, required when runmode=simple/forking. Unit: second. Time of intervals between each run.

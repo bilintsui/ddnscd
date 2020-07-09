@@ -1,11 +1,7 @@
 {
-	"runmode":"single", # Run ddnscd only once.
-	"runmode":"simple",	# Run ddnscd as a normal program.
-	"runmode":"forking",	# Run ddnscd as a daemon.
-	"pidfile":"/run/ddnscd.pid",	# Optional, required when runmode=forking.
+	"runmode":"single",
 	"log":"/var/log/ddnscd.log",	# Filename which logs saved to.
 	"loglevel":1,	# Optional, default 1. 0: Errors only; 1: Errors and Updates; 2: All messages.
-	"tick":600,	# Optional, required when runmode=simple/forking. Unit: second. Time of intervals between each run.
 	"lookup4":"https://api4.xmrx1999.com/ip.php",	# URL of IPv4 Lookup service.
 	"lookup6":"https://api6.xmrx1999.com/ip.php",	# URL of IPv6 Lookup service.
 	"deploys":	# Deploy Information Section.

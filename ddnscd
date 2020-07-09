@@ -1,6 +1,7 @@
-#! /usr/bin/env perl
+#! /usr/bin/perl
 use File::Basename;
 use JSON;
+use POSIX;
 $|=1;
 
 ## Pre Processing
@@ -8,7 +9,7 @@ $file_config=$ARGV[0];
 chomp($progname=basename($0));
 if(!$file_config)
 {
-	die ("Dynamic DNS Client Daemon v1.2(beta4)\nUsage: $progname config_file\n\n\tconfig_file\tConfiguration in JSON form.\n\nhttps://github.com/bilintsui/ddnscd\n(C) 2020 Bilin Tsui. Licensed with GNU GPL v3.\n");
+	die ("Dynamic DNS Client Daemon v1.2(beta5)\nUsage: $progname config_file\n\n\tconfig_file\tConfiguration in JSON form.\n\nhttps://github.com/bilintsui/ddnscd\n(C) 2020 Bilin Tsui. Licensed with GNU GPL v3.\n");
 }
 if(!(-e $file_config))
 {
@@ -16,6 +17,54 @@ if(!(-e $file_config))
 }
 
 ## Function Block 1
+sub mkfork
+{
+	my($pidfile)=@_;
+	if(!$pidfile)
+	{
+		die("Error: Missing \"pidfile\" option in your configuration file.\n");
+	}
+	if(-e $pidfile)
+	{
+		open OLDPID,"<$pidfile";
+		chomp($oldpid=<OLDPID>);
+		close OLDPID;
+		if(-e "/proc/$oldpid/cmdline")
+		{
+			open OLDCOMM,"/proc/$oldpid/cmdline";
+			chomp($oldcomm=<OLDCOMM>);
+			close OLDCOMM;
+			if($oldcomm=~/$progname/)
+			{
+				die("Error: A formerly process is still running. PID: $oldpid.\n");
+			}
+		}
+	}
+	if(!(-W dirname($pidfile)))
+	{
+		die("Error: Cannot write PID to ${pidfile}, permission denied.\n");
+	}
+	my($pid)=fork();
+	if(!(defined($pid)))
+	{
+		die("Error: Forking failed.\n");
+	}
+	if($pid)
+	{
+		open PIDFD, ">$pidfile";
+		print PIDFD $pid;
+		close PIDFD;
+		print "Started Dynamic DNS Client Daemon, PID: $pid.\n";
+		exit(0);
+	}
+	setpgrp();
+	setsid();
+	chdir("/");
+	umask(0);
+	close STDERR;
+	close STDOUT;
+	close STDIN;
+}
 sub json_preprocess
 {
 	chomp(my(@source)=@_);
@@ -124,50 +173,10 @@ $config_ip6lookup=$decoded_config->{lookup6};
 $config_deploys=$decoded_config->{deploys};
 
 ## Function Block 2 (Depended with Configuration Loaded)
-sub mkfork
-{
-	$config_pidfile=$decoded_config->{pidfile};
-	if(!$config_pidfile)
-	{
-		die("Error: Missing \"pidfile\" option in your configuration file.\n");
-	}
-	if(!(-W dirname($config_pidfile)))
-	{
-		die("Error: Cannot write PID to ${config_pidfile}, permission denied.\n");
-	}
-	if(-e $config_pidfile)
-	{
-		open OLDPID,"<$config_pidfile";
-		chomp($oldpid=<OLDPID>);
-		close OLDPID;
-		if(-e "/proc/$oldpid/cmdline")
-		{
-			open OLDCOMM,"/proc/$oldpid/cmdline";
-			chomp($oldcomm=<OLDCOMM>);
-			close OLDCOMM;
-			if($oldcomm=~/$progname/)
-			{
-				die("Error: A formerly process is still running. PID: $oldpid.\n");
-			}
-		}
-	}
-	my($pid)=fork();
-	if($pid)
-	{
-		open PIDFD, ">$config_pidfile";
-		print PIDFD $pid;
-		close PIDFD;
-		print "Started Dynamic DNS Client Daemon, PID: $pid\n";
-		exit(0);
-	}
-	setpgrp;
-	close STDERR;
-	close STDOUT;
-	close STDIN;
-}
+
 sub ip_lookup
 {
-	my($type,$domain)=@_;
+	my($type)=@_;
 	if($type eq 'A')
 	{
 		my($address)=readpipe('curl -s '.$config_iplookup);
@@ -187,17 +196,29 @@ sub log_process
 	my($nowtime);
 	chomp($nowtime=readpipe("date '+[%F %T %Z]'"));
 	my($maxlevel)=$config_loglevel;
-#	if(!$maxlevel)
-#	{
-#		$maxlevel=1;
-#	}
-#	print "$level,$maxlevel";
-#	print '.';
-#	if($level<=$maxlevel)
-#	{
+	if(!(defined($maxlevel)))
+	{
+		$maxlevel=1;
+	}
+	else
+	{
+		if(!($maxlevel=~/^\d+$/))
+		{
+			$maxlevel=1;
+		}
+		else
+		{
+			if(($maxlevel<0)||($maxlevel>2))
+			{
+				$maxlevel=1;
+			}
+		}
+	}
+	if($level<=$maxlevel)
+	{
 		print $message;
 		print LOGFD "$nowtime $message";
-#	}
+	}
 	close LOGFD;
 }
 sub cloudflare_apply
@@ -245,7 +266,7 @@ sub cloudflare_apply
 			$failcount=0;
 			while($lip==-1)
 			{
-				$lip=ip_lookup($rtype,$config_deployname);
+				$lip=ip_lookup($rtype);
 				if($failcount>=8)
 				{
 					last;
@@ -304,7 +325,7 @@ else
 		$config_daemon=$decoded_config->{tick};
 		if($config_runmode eq 'forking')
 		{
-			mkfork();
+			mkfork($decoded_config->{pidfile});
 		}
 		while(1)
 		{

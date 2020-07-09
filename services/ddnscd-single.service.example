@@ -3,10 +3,7 @@ Description=Dynamic DNS Client Daemon
 After=network.target network-online.target
 
 [Service]
-Type=oneshot # When runmode set to "Single".
-Type=simple	# When runmode set to "Simple".
-Type=forking	# When runmode set to "forking".
-PIDFile=/run/ddnscd.pid	# Optional, required when Type=forking.
+Type=oneshot
 User=root
 Restart=on-failure
 RestartSec=5s

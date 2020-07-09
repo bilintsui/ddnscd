@@ -1,13 +1,14 @@
 #! /usr/bin/env perl
+use File::Basename;
 use JSON;
-use Data::Dumper;
+$|=1;
 
 ## Pre Processing
 $file_config=$ARGV[0];
-chomp($progname=readpipe("basename $0"));
+chomp($progname=basename($0));
 if(!$file_config)
 {
-	die ("Dynamic DNS Client Daemon v1.2(beta3)\nUsage: $progname config_file\n\n\tconfig_file\tConfiguration in JSON form.\n\nhttps://github.com/bilintsui/ddnscd\n(C) 2020 Bilin Tsui. Licensed with GNU GPL v3.\n");
+	die ("Dynamic DNS Client Daemon v1.2(beta4)\nUsage: $progname config_file\n\n\tconfig_file\tConfiguration in JSON form.\n\nhttps://github.com/bilintsui/ddnscd\n(C) 2020 Bilin Tsui. Licensed with GNU GPL v3.\n");
 }
 if(!(-e $file_config))
 {
@@ -118,12 +119,52 @@ $decoded_config=json_configload($file_config);
 $config_runmode=$decoded_config->{runmode};
 $config_log=$decoded_config->{log};
 $config_loglevel=$decoded_config->{loglevel};
-$config_daemon=$decoded_config->{tick};
 $config_iplookup=$decoded_config->{lookup4};
 $config_ip6lookup=$decoded_config->{lookup6};
 $config_deploys=$decoded_config->{deploys};
 
 ## Function Block 2 (Depended with Configuration Loaded)
+sub mkfork
+{
+	$config_pidfile=$decoded_config->{pidfile};
+	if(!$config_pidfile)
+	{
+		die("Error: Missing \"pidfile\" option in your configuration file.\n");
+	}
+	if(!(-W dirname($config_pidfile)))
+	{
+		die("Error: Cannot write PID to ${config_pidfile}, permission denied.\n");
+	}
+	if(-e $config_pidfile)
+	{
+		open OLDPID,"<$config_pidfile";
+		chomp($oldpid=<OLDPID>);
+		close OLDPID;
+		if(-e "/proc/$oldpid/cmdline")
+		{
+			open OLDCOMM,"/proc/$oldpid/cmdline";
+			chomp($oldcomm=<OLDCOMM>);
+			close OLDCOMM;
+			if($oldcomm=~/$progname/)
+			{
+				die("Error: A formerly process is still running. PID: $oldpid.\n");
+			}
+		}
+	}
+	my($pid)=fork();
+	if($pid)
+	{
+		open PIDFD, ">$config_pidfile";
+		print PIDFD $pid;
+		close PIDFD;
+		print "Started Dynamic DNS Client Daemon, PID: $pid\n";
+		exit(0);
+	}
+	setpgrp;
+	close STDERR;
+	close STDOUT;
+	close STDIN;
+}
 sub ip_lookup
 {
 	my($type,$domain)=@_;
@@ -159,7 +200,6 @@ sub log_process
 #	}
 	close LOGFD;
 }
-
 sub cloudflare_apply
 {
 	my(@arguments)=@_;
@@ -214,7 +254,7 @@ sub cloudflare_apply
 			}
 			if($failcount>=8)
 			{
-				log_process(0,"CF4_LOOKUP(${realdomain}-${rtype}): Cannot lookup a vaild IP for current client, max tries reached.\n");
+				log_process(0,"CF4_LOOKUP(${realdomain} - ${rtype}): Cannot lookup a vaild IP for current client, max tries reached.\n");
 				next;
 			}
 			if($rip ne $lip)
@@ -222,23 +262,21 @@ sub cloudflare_apply
 				my($response)=cloudflare_dns_update($username,$password,$zid,$rid,$rtype,$realdomain,$lip);
 				if($response==0)
 				{
-					log_process(1,"CF4_UPDATE(${realdomain}-${rtype}): Updated record from ${rip} to ${lip}.\n");
+					log_process(1,"CF4_UPDATE(${realdomain} - ${rtype}): Updated record from ${rip} to ${lip}.\n");
 				}
 				else
 				{
-					log_process(0,"CF4_UPDATE(${realdomain}-${rtype}): Failed to update record.\n");
+					log_process(0,"CF4_UPDATE(${realdomain} - ${rtype}): Failed to update record.\n");
 				}
 			}
 			else
 			{
-				log_process(2,"CF4_UPDATE(${realdomain}-${rtype}): IP not changed, ignored.\n");
+				log_process(2,"CF4_UPDATE(${realdomain} - ${rtype}): IP not changed, ignored.\n");
 			}
 		}
 	}
 }
-
-## Main Process
-while(1)
+sub cloudflare_run
 {
 	foreach $rec_deploys(@{$config_deploys})
 	{
@@ -248,5 +286,30 @@ while(1)
 		my(@config_deploy)=@{$rec_deploys->{deploy}};
 		cloudflare_apply($config_root,$config_username,$config_password,@config_deploy);
 	}
-	sleep($config_daemon);
+}
+
+## Main Process
+if($config_runmode eq 'single')
+{
+	cloudflare_run;
+}
+else
+{
+	if(!(($config_runmode eq 'simple')||($config_runmode eq 'forking')))
+	{
+		die("Error: Missing or invaild \"runmode\" option in your configuration file.\n");
+	}
+	else
+	{
+		$config_daemon=$decoded_config->{tick};
+		if($config_runmode eq 'forking')
+		{
+			mkfork();
+		}
+		while(1)
+		{
+			cloudflare_run;
+			sleep($config_daemon);
+		}
+	}
 }

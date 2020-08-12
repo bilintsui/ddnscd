@@ -7,7 +7,7 @@ Type=simple
 User=root
 Restart=on-failure
 RestartSec=5s
-ExecStart=/usr/bin/ddnscd /etc/ddnscd/config.json
+ExecStart=/usr/bin/ddnscd -s
 WorkingDirectory=/
 
 [Install]

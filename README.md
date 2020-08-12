@@ -7,7 +7,7 @@
 * Linux
 * Perl, and module JSON(could install with "cpan install JSON"), File::Basename, POSIX
 * curl
-* make(compiling Perl modules)
+* make(compiling Perl modules), or install it by your package manager.
 
 ## Files
 * ddnscd: Main program.
@@ -17,14 +17,13 @@
 * services/*: collections of systemd Service Unit files in different runmode.
 
 ## Usage
-ddnscd <config_file>
-* config_file: the path of your config file. (eg: /etc/ddnscd/config.json)
+ddnscd <-o|s|f [-p pidfile]> [-c conf]<br/>
+See more, use "ddnscd -h" or "ddnscd --help".
 
 ## Configs
 ### Example
 >{<br/>
->>"runmode": "forking", <br/>
->>"pidfile": "/run/ddnscd.pid", <br/>
+>>"confver": 3, <br/>
 >>"log": "/var/log/ddnscd.log", <br/>
 >>"loglevel": 1, <br/>
 >>"tick": 600, <br/>
@@ -51,8 +50,7 @@ ddnscd <config_file>
 >>>}<br/>
 >>]<br/>
 >}<br/>
- * runmode: Running mode of this program, "single" for running once, "simple" for a undaemonized service, "forking" for a daemonized service.
- * pidfile: Optional, required when runmode=forking.
+ * confver: Config Version. Currently 3 for v1.2 beta 6.
  * log: Filename which logs saved to.
  * loglevel: Optional, default 1. 0: Errors only; 1: Errors and Updates; 2: All messages.
  * tick: Optional, required when runmode=simple/forking. Unit: second. Time of intervals between each run.

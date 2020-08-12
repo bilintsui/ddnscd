@@ -1,29 +1,170 @@
 #! /usr/bin/perl
+# Version: 1.2-beta6
+# Interval Version: 8
+# Config Version: 3
 use File::Basename;
 use JSON;
 use POSIX;
 $|=1;
+chomp($progname=basename($0));
+$initmsg="Dynamic DNS Client Daemon v1.2(beta6)\n\nUsage:\n	$progname <-o|s|f [-p pidfile]> [-c conf]\n	$progname <-h|--help>\n\nSee more, watch: https://github.com/bilintsui/ddnscd\n(C) 2020 Bilin Tsui. Licensed with GNU GPL v3.";
+$helpmsg="Dynamic DNS Client Daemon v1.2(beta6)\nArguments Help\n\nCommon:\n-h, --help	Show this message.\n-c, --conf	Optional, is your configuration file in JSON form. Default /etc/ddnscd/config.json.\n\nRunmodes:\n-o, --once	Run ddnscd once.\n-s, --simple	Run ddnscd as a normal service.\n-f, --forking	Run ddnscd as a daemonized service.\n\nAdditional:\n-p, --pid	(Forking only) Optional, is your filename to save PID of main process to. Default /run/ddnscd.pid.\n\nSee more, watch: https://github.com/bilintsui/ddnscd\n(C) 2020 Bilin Tsui. Licensed with GNU GPL v3.";
+
+## Arguments Processing
+{
+$file_config='/etc/ddnscd/config.json';
+$config_runmode_once=0;
+$config_runmode_simple=0;
+$config_runmode_forking=0;
+$config_runmode='';
+$config_additional_pid='/run/ddnscd.pid';
+@arguments=@ARGV;
+if(!@arguments)
+{
+	die("$initmsg\n");
+}
+do
+{
+	$rec_argu=shift @arguments;
+	if($rec_argu=~/^-{1}\w+$/)
+	{
+		$rec_argu=~s/^-{1}//;
+		if(($rec_argu=~/^[^cp]*[cp]$/)||($rec_argu=~/^[^cp]+$/))
+		{
+			$rec_argu_length=length($rec_argu);
+			for($charcount=0;$charcount<$rec_argu_length;$charcount++)
+			{
+				$rec_subargu=substr($rec_argu,$charcount,1);
+				if($rec_subargu eq 'h')
+				{
+					die("$helpmsg\n");
+				}
+				elsif($rec_subargu eq 'c')
+				{
+					$pre_file_config=shift @arguments;
+					if($pre_file_config)
+					{
+						$file_config=$pre_file_config;
+					}
+					else
+					{
+						die("Error: You must be specify configuration file.\n")
+					}
+				}
+				elsif($rec_subargu eq 'o')
+				{
+					$config_runmode_once=1;
+				}
+				elsif($rec_subargu eq 's')
+				{
+					$config_runmode_simple=1;
+				}
+				elsif($rec_subargu eq 'f')
+				{
+					$config_runmode_forking=1;
+				}
+				elsif($rec_subargu eq 'p')
+				{
+					$pre_config_additional_pid=shift @arguments;
+					if($pre_config_additional_pid)
+					{
+						$config_additional_pid=$pre_config_additional_pid;
+					}
+					else
+					{
+						die("Error: You must be specify a pid file.\n")
+					}
+				}
+				else
+				{
+					die("Syntax error: Unrecognized option \"-$rec_argu\".\n");
+				}
+			}
+		}
+		else
+		{
+			die("Syntax error: option \"c\" and \"p\" must be the last of the mixed options, or cannot mixed together.\n")
+		}
+	}
+	if(($rec_argu=~/^-{2}\w+$/))
+	{
+		$rec_argu=~s/^-{2}//;
+		if($rec_argu eq 'help')
+		{
+			die("$helpmsg\n");
+		}
+		elsif($rec_argu eq 'conf')
+		{
+			$pre_file_config=shift @arguments;
+			if($pre_file_config)
+			{
+				$file_config=$pre_file_config;
+			}
+			else
+			{
+				die("Error: You must be specify a configuration file.\n")
+			}
+		}
+		elsif($rec_argu eq 'once')
+		{
+			$config_runmode_once=1;
+		}
+		elsif($rec_argu eq 'simple')
+		{
+			$config_runmode_simple=1;
+		}
+		elsif($rec_argu eq 'forking')
+		{
+			$config_runmode_forking=1;
+		}
+		elsif($rec_argu eq 'pid')
+		{
+			$pre_config_additional_pid=shift @arguments;
+			if($pre_config_additional_pid)
+			{
+				$config_additional_pid=$pre_config_additional_pid;
+			}
+			else
+			{
+				die("Error: You must be specify a pid file.\n")
+			}
+		}
+		else
+		{
+			die("Syntax error: Unrecognized option \"--$rec_argu\".\n");
+		}
+	}
+} while($#arguments>=0);
+if(($config_runmode_once+$config_runmode_simple+$config_runmode_forking)!=1)
+{
+	die("Error: Cannot recognize which runmode which you want to use.\n")
+}
+if($config_runmode_once==1)
+{
+	$config_runmode='single';
+}
+if($config_runmode_simple==1)
+{
+	$config_runmode='simple';
+}
+if($config_runmode_forking==1)
+{
+	$config_runmode='forking';
+}
+}
 
 ## Pre Processing
-$file_config=$ARGV[0];
-chomp($progname=basename($0));
-if(!$file_config)
 {
-	die ("Dynamic DNS Client Daemon v1.2(beta5)\nUsage: $progname config_file\n\n\tconfig_file\tConfiguration in JSON form.\n\nhttps://github.com/bilintsui/ddnscd\n(C) 2020 Bilin Tsui. Licensed with GNU GPL v3.\n");
-}
 if(!(-e $file_config))
 {
 	die ("Error: Configuration file \"$file_config\" don't exist.\n");
+}
 }
 
 ## Function Block 1
 sub mkfork
 {
 	my($pidfile)=@_;
-	if(!$pidfile)
-	{
-		die("Error: Missing \"pidfile\" option in your configuration file.\n");
-	}
 	if(-e $pidfile)
 	{
 		open OLDPID,"<$pidfile";
@@ -81,12 +222,10 @@ sub json_curl
 {
 	my($command)=@_;
 	my(@response)=();
-	my($trycount)=0;
 	do
 	{
 		@response=readpipe($command);
-		$trycount++;
-	} while((!@response)&&($trycount<=3));
+	} while(!@response);
 	my($processed)=json_preprocess(@response);
 	my($result)=decode_json($processed);
 	return $result;
@@ -164,16 +303,21 @@ sub cloudflare_dns_update
 }
 
 ## Config Processing
+{
 $decoded_config=json_configload($file_config);
-$config_runmode=$decoded_config->{runmode};
+$config_version=$decoded_config->{confver};
 $config_log=$decoded_config->{log};
 $config_loglevel=$decoded_config->{loglevel};
 $config_iplookup=$decoded_config->{lookup4};
 $config_ip6lookup=$decoded_config->{lookup6};
 $config_deploys=$decoded_config->{deploys};
+if($config_version!=3)
+{
+	die("Error: Incompatible configuation file, check your configuration version.\n");
+}
+}
 
 ## Function Block 2 (Depended with Configuration Loaded)
-
 sub ip_lookup
 {
 	my($type)=@_;
@@ -310,27 +454,27 @@ sub cloudflare_run
 }
 
 ## Main Process
+{
 if($config_runmode eq 'single')
 {
+	print "Started Dynamic DNS Client Daemon, just run once.\n";
 	cloudflare_run;
 }
 else
 {
-	if(!(($config_runmode eq 'simple')||($config_runmode eq 'forking')))
+	$config_daemon=$decoded_config->{tick};
+	if($config_runmode eq 'forking')
 	{
-		die("Error: Missing or invaild \"runmode\" option in your configuration file.\n");
+		mkfork($config_additional_pid);
 	}
-	else
+	if($config_runmode eq 'simple')
 	{
-		$config_daemon=$decoded_config->{tick};
-		if($config_runmode eq 'forking')
-		{
-			mkfork($decoded_config->{pidfile});
-		}
-		while(1)
-		{
-			cloudflare_run;
-			sleep($config_daemon);
-		}
+		print "Started Dynamic DNS Client Daemon.\nUse Ctrl-C or send a signal to stop it.\n";
 	}
+	while(1)
+	{
+		cloudflare_run;
+		sleep($config_daemon);
+	}
+}
 }

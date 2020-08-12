@@ -8,7 +8,7 @@ PIDFile=/run/ddnscd.pid
 User=root
 Restart=on-failure
 RestartSec=5s
-ExecStart=/usr/bin/ddnscd /etc/ddnscd/config.json
+ExecStart=/usr/bin/ddnscd -f
 WorkingDirectory=/
 
 [Install]

@@ -5,9 +5,13 @@
 
 ## Requirements
 * Linux
-* Perl, and module JSON(could install with "cpan install JSON"), File::Basename, POSIX
+* Perl, and module JSON, File::Basename, POSIX
 * curl
-* make(compiling Perl modules), or install it by your package manager.
+
+## Install Perl Module: JSON
+* apt(like Debian, Ubuntu): apt install libjson-perl
+* yum/dnf(like Fedora, RHEL, CentOS): yum install perl-JSON
+* pacman(like ArchLinux): pacman -S perl-json
 
 ## Files
 * ddnscd: Main program.

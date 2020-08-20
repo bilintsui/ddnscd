@@ -1,14 +1,21 @@
 #! /usr/bin/perl
-# Version: 1.2-beta6
-# Interval Version: 8
+# Version: 1.2-beta7
+# Interval Version: 9
 # Config Version: 3
 use File::Basename;
 use JSON;
 use POSIX;
 $|=1;
+$pwd=$ENV{'PWD'};
+$version_interval=9;
+$version_config=3;
+$version_major=1;
+$version_minor=2;
+$version_additional='(beta7)';
+$version="$version_major.$version_minor$version_additional";
 chomp($progname=basename($0));
-$initmsg="Dynamic DNS Client Daemon v1.2(beta6)\n\nUsage:\n	$progname <-o|s|f [-p pidfile]> [-c conf]\n	$progname <-h|--help>\n\nSee more, watch: https://github.com/bilintsui/ddnscd\n(C) 2020 Bilin Tsui. Licensed with GNU GPL v3.";
-$helpmsg="Dynamic DNS Client Daemon v1.2(beta6)\nArguments Help\n\nCommon:\n-h, --help	Show this message.\n-c, --conf	Optional, is your configuration file in JSON form. Default /etc/ddnscd/config.json.\n\nRunmodes:\n-o, --once	Run ddnscd once.\n-s, --simple	Run ddnscd as a normal service.\n-f, --forking	Run ddnscd as a daemonized service.\n\nAdditional:\n-p, --pid	(Forking only) Optional, is your filename to save PID of main process to. Default /run/ddnscd.pid.\n\nSee more, watch: https://github.com/bilintsui/ddnscd\n(C) 2020 Bilin Tsui. Licensed with GNU GPL v3.";
+$initmsg="Dynamic DNS Client Daemon v$version\n\nUsage:\n	$progname <-o|s|f [-p pidfile]> [-c conf]\n	$progname <-h|--help>\n\nSee more, watch: https://github.com/bilintsui/ddnscd\n(C) 2020 Bilin Tsui. Licensed with GNU GPL v3.";
+$helpmsg="Dynamic DNS Client Daemon v$version\nArguments Help\n\nCommon:\n-h, --help	Show this message.\n-c, --conf	Optional, is your configuration file in JSON form.\n                Default /etc/ddnscd/config.json.\n\nRunmodes:\n-o, --once	Run ddnscd once.\n-s, --simple	Run ddnscd as a normal service.\n-f, --forking	Run ddnscd as a daemonized service.\n\nAdditional:\n-p, --pid	(Forking only) Optional, is your filename to save PID of main process to.\n                Default /run/ddnscd.pid.\n\nSee more, watch: https://github.com/bilintsui/ddnscd\n(C) 2020 Bilin Tsui. Licensed with GNU GPL v3.";
 
 ## Arguments Processing
 {
@@ -221,13 +228,21 @@ sub json_preprocess
 sub json_curl
 {
 	my($command)=@_;
-	my(@response)=();
-	do
+	my($result)=();
+	while(1)
 	{
-		@response=readpipe($command);
-	} while(!@response);
-	my($processed)=json_preprocess(@response);
-	my($result)=decode_json($processed);
+		my(@response)=();
+		do
+		{
+			@response=readpipe($command);
+		} while(!@response);
+		my($processed)=json_preprocess(@response);
+		eval { $result=decode_json($processed) };
+		if(!$@)
+		{
+			last;
+		}
+	}
 	return $result;
 }
 sub json_configload
@@ -238,7 +253,12 @@ sub json_configload
 	chomp(@configs_preraw=<CONF>);
 	close CONF;
 	my($configs_raw)=json_preprocess(@configs_preraw);
-	my($configs)=decode_json($configs_raw);
+	my($configs)=();
+	eval { $configs=decode_json($configs_raw) };
+	if($@)
+	{
+		die("Error: Malformed JSON in config file.\n");
+	}
 	return $configs;
 }
 sub cloudflare_zid_lookup
@@ -306,14 +326,23 @@ sub cloudflare_dns_update
 {
 $decoded_config=json_configload($file_config);
 $config_version=$decoded_config->{confver};
-$config_log=$decoded_config->{log};
+$config_log_pre=$decoded_config->{log};
+$config_log='';
 $config_loglevel=$decoded_config->{loglevel};
 $config_iplookup=$decoded_config->{lookup4};
 $config_ip6lookup=$decoded_config->{lookup6};
 $config_deploys=$decoded_config->{deploys};
-if($config_version!=3)
+if($config_version!=$version_config)
 {
 	die("Error: Incompatible configuation file, check your configuration version.\n");
+}
+if($config_log_pre=~/^\//)
+{
+	$config_log=$config_log_pre;
+}
+else
+{
+	$config_log=$pwd."/".$config_log_pre;
 }
 }
 
@@ -324,14 +353,31 @@ sub ip_lookup
 	if($type eq 'A')
 	{
 		my($address)=readpipe('curl -s '.$config_iplookup);
-		return $address;
+		if($address)
+		{
+			return $address;
+		}
+		else
+		{
+			return -1;
+		}
 	}
-	if($type eq 'AAAA')
+	elsif($type eq 'AAAA')
 	{
 		my($address)=readpipe('curl -s '.$config_ip6lookup);
-		return $address;
+		if($address)
+		{
+			return $address;
+		}
+		else
+		{
+			return -1;
+		}
 	}
-	return -1;
+	else
+	{
+		return -1;
+	}
 }
 sub log_process
 {

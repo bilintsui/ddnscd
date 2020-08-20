@@ -3,12 +3,11 @@ Description=Dynamic DNS Client Daemon
 After=network.target network-online.target
 
 [Service]
-Type=forking
-PIDFile=/run/ddnscd.pid
+Type=simple
 User=root
 Restart=on-failure
 RestartSec=5s
-ExecStart=/usr/bin/ddnscd -f
+ExecStart=/usr/bin/ddnscd /etc/ddnscd/config.json
 WorkingDirectory=/
 
 [Install]

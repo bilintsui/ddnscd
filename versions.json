@@ -1,5 +1,5 @@
 {
-	"latest": 8,
+	"latest": 9,
 	"versions":[
 		{"name": "1.0", "interval": 1, "conf": 1},
 		{"name": "1.1", "interval": 2, "conf": 1},
@@ -8,6 +8,7 @@
 		{"name": "1.2-beta3", "interval": 5, "conf": 2},
 		{"name": "1.2-beta4", "interval": 6, "conf": 2},
 		{"name": "1.2-beta5", "interval": 7, "conf": 2},
-		{"name": "1.2-beta6", "interval": 8, "conf": 3}
+		{"name": "1.2-beta6", "interval": 8, "conf": 3},
+		{"name": "1.2-beta7", "interval": 9, "conf": 3}
 	]
 }

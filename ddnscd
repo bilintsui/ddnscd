@@ -1,526 +1,712 @@
 #! /usr/bin/perl
-# Version: 1.2-beta7
-# Interval Version: 9
-# Config Version: 3
-use File::Basename;
-use JSON;
-use POSIX;
-$|=1;
-$pwd=$ENV{'PWD'};
-$version_interval=9;
-$version_config=3;
-$version_major=1;
-$version_minor=2;
-$version_additional='(beta7)';
-$version="$version_major.$version_minor$version_additional";
-chomp($progname=basename($0));
-$initmsg="Dynamic DNS Client Daemon v$version\n\nUsage:\n	$progname <-o|s|f [-p pidfile]> [-c conf]\n	$progname <-h|--help>\n\nSee more, watch: https://github.com/bilintsui/ddnscd\n(C) 2020 Bilin Tsui. Licensed with GNU GPL v3.";
-$helpmsg="Dynamic DNS Client Daemon v$version\nArguments Help\n\nCommon:\n-h, --help	Show this message.\n-c, --conf	Optional, is your configuration file in JSON form.\n                Default /etc/ddnscd/config.json.\n\nRunmodes:\n-o, --once	Run ddnscd once.\n-s, --simple	Run ddnscd as a normal service.\n-f, --forking	Run ddnscd as a daemonized service.\n\nAdditional:\n-p, --pid	(Forking only) Optional, is your filename to save PID of main process to.\n                Default /run/ddnscd.pid.\n\nSee more, watch: https://github.com/bilintsui/ddnscd\n(C) 2020 Bilin Tsui. Licensed with GNU GPL v3.";
-
+# Version: 1.2-beta8
+# Interval Version: 10
+# Config Version: 4
+## Defines
+{
+	use File::Basename;
+	use JSON;
+	use POSIX;
+	$|=1;
+	$pwd=$ENV{'PWD'};
+	$globalcache=();
+	$version_interval=10;
+	$version_config=4;
+	$version_major=1;
+	$version_minor=2;
+	$version_additional='(beta8)';
+	$version="$version_major.$version_minor$version_additional";
+	chomp($progname=basename($0));
+	$initmsg="Dynamic DNS Client Daemon v$version\n\nUsage:\n\t$progname <-o|s|f [-p pidfile]> [-c conf]\n\t$progname <-h|--help>\n\t$progname <-v|--version>\n\nSee more, watch: https://github.com/bilintsui/ddnscd\n(C) 2020 Bilin Tsui. Licensed with GNU GPL v3.";
+	$helpmsg="Dynamic DNS Client Daemon v$version\nArguments Help\n\nCommon:\n-h, --help\tShow this message.\n-c, --conf\tOptional, is your configuration file in JSON form.\n\t\tDefault /etc/ddnscd/config.json.\n-v, --version\tShow program version.\n\nRunmodes:\n-o, --once\tRun ddnscd once.\n-s, --simple\tRun ddnscd as a normal service.\n-f, --forking\tRun ddnscd as a daemonized service.\n\nAdditional:\n-p, --pid\t(Forking only) Optional, is your filename to save PID of main process to.\n\t\tDefault /run/ddnscd.pid.\n\nSee more, watch: https://github.com/bilintsui/ddnscd\n(C) 2020 Bilin Tsui. Licensed with GNU GPL v3.";
+}
 ## Arguments Processing
 {
-$file_config='/etc/ddnscd/config.json';
-$config_runmode_once=0;
-$config_runmode_simple=0;
-$config_runmode_forking=0;
-$config_runmode='';
-$config_additional_pid='/run/ddnscd.pid';
-@arguments=@ARGV;
-if(!@arguments)
-{
-	die("$initmsg\n");
-}
-do
-{
-	$rec_argu=shift @arguments;
-	if($rec_argu=~/^-{1}\w+$/)
+	$file_config='/etc/ddnscd/config.json';
+	$config_runmode_once=0;
+	$config_runmode_simple=0;
+	$config_runmode_forking=0;
+	$config_runmode='';
+	$config_additional_pid='/run/ddnscd.pid';
+	@arguments=@ARGV;
+	if(!@arguments)
 	{
-		$rec_argu=~s/^-{1}//;
-		if(($rec_argu=~/^[^cp]*[cp]$/)||($rec_argu=~/^[^cp]+$/))
+		die("$initmsg\n");
+	}
+	do
+	{
+		$rec_argu=shift @arguments;
+		if($rec_argu=~/^-{1}\w+$/)
 		{
-			$rec_argu_length=length($rec_argu);
-			for($charcount=0;$charcount<$rec_argu_length;$charcount++)
+			$rec_argu=~s/^-{1}//;
+			if(($rec_argu=~/^[^cp]*[cp]$/)||($rec_argu=~/^[^cp]+$/))
 			{
-				$rec_subargu=substr($rec_argu,$charcount,1);
-				if($rec_subargu eq 'h')
+				$rec_argu_length=length($rec_argu);
+				for($charcount=0;$charcount<$rec_argu_length;$charcount++)
 				{
-					die("$helpmsg\n");
-				}
-				elsif($rec_subargu eq 'c')
-				{
-					$pre_file_config=shift @arguments;
-					if($pre_file_config)
+					$rec_subargu=substr($rec_argu,$charcount,1);
+					if($rec_subargu eq 'h')
 					{
-						$file_config=$pre_file_config;
+						die("$helpmsg\n");
+					}
+					elsif($rec_subargu eq 'v')
+					{
+						die("v$version\n");
+					}
+					elsif($rec_subargu eq 'c')
+					{
+						$pre_file_config=shift @arguments;
+						if($pre_file_config)
+						{
+							$file_config=$pre_file_config;
+						}
+						else
+						{
+							die("Error: You must be specify configuration file.\n")
+						}
+					}
+					elsif($rec_subargu eq 'o')
+					{
+						$config_runmode_once=1;
+					}
+					elsif($rec_subargu eq 's')
+					{
+						$config_runmode_simple=1;
+					}
+					elsif($rec_subargu eq 'f')
+					{
+						$config_runmode_forking=1;
+					}
+					elsif($rec_subargu eq 'p')
+					{
+						$pre_config_additional_pid=shift @arguments;
+						if($pre_config_additional_pid)
+						{
+							$config_additional_pid=$pre_config_additional_pid;
+						}
+						else
+						{
+							die("Error: You must be specify a pid file.\n")
+						}
 					}
 					else
 					{
-						die("Error: You must be specify configuration file.\n")
+						die("Syntax error: Unrecognized option \"-$rec_argu\".\n");
 					}
 				}
-				elsif($rec_subargu eq 'o')
+			}
+			else
+			{
+				die("Syntax error: option \"c\" and \"p\" must be the last of the mixed options, or cannot mixed together.\n")
+			}
+		}
+		if(($rec_argu=~/^-{2}\w+$/))
+		{
+			$rec_argu=~s/^-{2}//;
+			if($rec_argu eq 'help')
+			{
+				die("$helpmsg\n");
+			}
+			elsif($rec_argu eq 'version')
+			{
+				die("v$version\n");
+			}
+			elsif($rec_argu eq 'conf')
+			{
+				$pre_file_config=shift @arguments;
+				if($pre_file_config)
 				{
-					$config_runmode_once=1;
-				}
-				elsif($rec_subargu eq 's')
-				{
-					$config_runmode_simple=1;
-				}
-				elsif($rec_subargu eq 'f')
-				{
-					$config_runmode_forking=1;
-				}
-				elsif($rec_subargu eq 'p')
-				{
-					$pre_config_additional_pid=shift @arguments;
-					if($pre_config_additional_pid)
-					{
-						$config_additional_pid=$pre_config_additional_pid;
-					}
-					else
-					{
-						die("Error: You must be specify a pid file.\n")
-					}
+					$file_config=$pre_file_config;
 				}
 				else
 				{
-					die("Syntax error: Unrecognized option \"-$rec_argu\".\n");
+					die("Error: You must be specify a configuration file.\n")
+				}
+			}
+			elsif($rec_argu eq 'once')
+			{
+				$config_runmode_once=1;
+			}
+			elsif($rec_argu eq 'simple')
+			{
+				$config_runmode_simple=1;
+			}
+			elsif($rec_argu eq 'forking')
+			{
+				$config_runmode_forking=1;
+			}
+			elsif($rec_argu eq 'pid')
+			{
+				$pre_config_additional_pid=shift @arguments;
+				if($pre_config_additional_pid)
+				{
+					$config_additional_pid=$pre_config_additional_pid;
+				}
+				else
+				{
+					die("Error: You must be specify a pid file.\n")
+				}
+			}
+			else
+			{
+				die("Syntax error: Unrecognized option \"--$rec_argu\".\n");
+			}
+		}
+	} while($#arguments>=0);
+	if(($config_runmode_once+$config_runmode_simple+$config_runmode_forking)!=1)
+	{
+		die("Error: Cannot recognize which runmode which you want to use.\n")
+	}
+	if($config_runmode_once==1)
+	{
+		$config_runmode='single';
+	}
+	if($config_runmode_simple==1)
+	{
+		$config_runmode='simple';
+	}
+	if($config_runmode_forking==1)
+	{
+		$config_runmode='forking';
+	}
+}
+## Pre Processing
+{
+	if(!(-e $file_config))
+	{
+		die ("Error: Configuration file \"$file_config\" don't exist.\n");
+	}
+}
+## Function Block 1
+{
+	sub mkfork
+	{
+		my($pidfile)=@_;
+		if(-e $pidfile)
+		{
+			open OLDPID,"<$pidfile";
+			chomp($oldpid=<OLDPID>);
+			close OLDPID;
+			if(-e "/proc/$oldpid/cmdline")
+			{
+				open OLDCOMM,"/proc/$oldpid/cmdline";
+				chomp($oldcomm=<OLDCOMM>);
+				close OLDCOMM;
+				if($oldcomm=~/$progname/)
+				{
+					die("Error: A formerly process is still running. PID: $oldpid.\n");
 				}
 			}
 		}
+		if(!(-W dirname($pidfile)))
+		{
+			die("Error: Cannot write PID to ${pidfile}, permission denied.\n");
+		}
+		my($pid)=fork();
+		if(!(defined($pid)))
+		{
+			die("Error: Forking failed.\n");
+		}
+		if($pid)
+		{
+			open PIDFD, ">$pidfile";
+			print PIDFD $pid;
+			close PIDFD;
+			print "Started Dynamic DNS Client Daemon, PID: $pid.\n";
+			exit(0);
+		}
+		setpgrp();
+		setsid();
+		chdir("/");
+		umask(0);
+		close STDERR;
+		close STDOUT;
+		close STDIN;
+	}
+	sub json_preprocess
+	{
+		chomp(my(@source)=@_);
+		my($result)='';
+		foreach $recline(@source)
+		{
+			$recline=~s/^\s+//g;
+			$recline=~s/\s+$//g;
+			$result=$result.$recline;
+		}
+		return $result;
+	}
+	sub json_curl
+	{
+		my($command)=@_;
+		my($result)=();
+		while(1)
+		{
+			my(@response)=();
+			do
+			{
+				@response=readpipe($command);
+			} while(!@response);
+			my($processed)=json_preprocess(@response);
+			eval { $result=decode_json($processed) };
+			if(!$@)
+			{
+				last;
+			}
+		}
+		return $result;
+	}
+	sub json_configload
+	{
+		my($filename)=@_;
+		open CONF,"<$filename";
+		my(@config_preraw)=();
+		chomp(@configs_preraw=<CONF>);
+		close CONF;
+		my($configs_raw)=json_preprocess(@configs_preraw);
+		my($configs)=();
+		eval { $configs=decode_json($configs_raw) };
+		if($@)
+		{
+			die("Error: Malformed JSON in config file.\n");
+		}
+		return $configs;
+	}
+	sub cloudflare_zid_lookup
+	{
+		my($username,$password,$update_rootdomain)=@_;
+		my($return)='';
+		my($zid)=$globalcache->{$update_rootdomain};
+		if(defined($zid))
+		{
+			$return=$zid;
+		}
 		else
 		{
-			die("Syntax error: option \"c\" and \"p\" must be the last of the mixed options, or cannot mixed together.\n")
+			$return=cloudflare_zid_lookup_fresh($username,$password,$update_rootdomain);
 		}
+		return $return;
 	}
-	if(($rec_argu=~/^-{2}\w+$/))
+	sub cloudflare_zid_lookup_fresh
 	{
-		$rec_argu=~s/^-{2}//;
-		if($rec_argu eq 'help')
+		my($username,$password,$update_rootdomain)=@_;
+		my($return)='';
+		my($decoded_json)=json_curl('curl -s -X GET "https://api.cloudflare.com/client/v4/zones" -H "Content-Type:application/json" -H "X-Auth-Key:'.$password.'" -H "X-Auth-Email:'.$username.'"');
+		my($zones_success)=$decoded_json->{success};
+		if(!$zones_success)
 		{
-			die("$helpmsg\n");
+			return -1;
 		}
-		elsif($rec_argu eq 'conf')
+		my($zone_count)=($decoded_json->{result_info}->{count})-1;
+		my($rec_zone_count)=0;
+		for($rec_zone_count=0;$rec_zone_count<=$zone_count;$rec_zone_count++)
 		{
-			$pre_file_config=shift @arguments;
-			if($pre_file_config)
+			my($rec_zone_name)=$decoded_json->{result}->[$rec_zone_count]->{name};
+			if($rec_zone_name eq $update_rootdomain)
 			{
-				$file_config=$pre_file_config;
-			}
-			else
-			{
-				die("Error: You must be specify a configuration file.\n")
+				my($rec_zone_id)=$decoded_json->{result}->[$rec_zone_count]->{id};
+				$return=$rec_zone_id;
+				last;
 			}
 		}
-		elsif($rec_argu eq 'once')
+		$globalcache->{$update_rootdomain}=$return;
+		return $return;
+	}
+	sub cloudflare_record_lookup
+	{
+		my($username,$password,$update_domain,$zone_id)=@_;
+		my($return)=();
+		my($rid)=$globalcache->{$update_domain};
+		if(defined($rid))
 		{
-			$config_runmode_once=1;
-		}
-		elsif($rec_argu eq 'simple')
-		{
-			$config_runmode_simple=1;
-		}
-		elsif($rec_argu eq 'forking')
-		{
-			$config_runmode_forking=1;
-		}
-		elsif($rec_argu eq 'pid')
-		{
-			$pre_config_additional_pid=shift @arguments;
-			if($pre_config_additional_pid)
-			{
-				$config_additional_pid=$pre_config_additional_pid;
-			}
-			else
-			{
-				die("Error: You must be specify a pid file.\n")
-			}
+			$return=$rid;
 		}
 		else
 		{
-			die("Syntax error: Unrecognized option \"--$rec_argu\".\n");
+			$return=cloudflare_record_lookup_fresh($username,$password,$update_domain,$zone_id);
+		}
+		return $return;
+	}
+	sub cloudflare_record_lookup_fresh
+	{
+		my($username,$password,$update_domain,$zone_id)=@_;
+		my($return)=();
+		my($decoded_json)=json_curl('curl -s -X GET "https://api.cloudflare.com/client/v4/zones/'.$zone_id.'/dns_records?name='.$update_domain.'" -H "Content-Type:application/json" -H "X-Auth-Key:'.$password.'" -H "X-Auth-Email:'.$username.'"');
+		my($records_success)=$decoded_json->{success};
+		if(!$records_success)
+		{
+			return -1;
+		}
+		my($results)=$decoded_json->{result};
+		foreach $rec_result(@{$results})
+		{
+			my($result_single)=();
+			$result_single->{id}=$rec_result->{id};
+			$result_single->{ip}=$rec_result->{content};
+			$result_single->{type}=$rec_result->{type};
+			push @{$return}, $result_single;
+		}
+		$globalcache->{$update_domain}=$return;
+		return $return;
+	}
+	sub cloudflare_dns_create
+	{
+		my($username,$password,$zid,$type,$create_domain,$new_ip)=@_;
+		my($execstr)='curl -s -X POST "https://api.cloudflare.com/client/v4/zones/'.$zid.'/dns_records" -H "Content-Type:application/json" -H "X-Auth-Key:'.$password.'" -H "X-Auth-Email:'.$username.'" --data \'{"type":"'.$type.'","name":"'.$create_domain.'","content":"'.$new_ip.'","ttl":1,"proxied":false}\'';
+		my($decoded_json)=json_curl($execstr);
+		my($response_success)=$decoded_json->{success};
+		my($response_rid)=$decoded_json->{result}->{id};
+		if(!$response_success)
+		{
+			return 1;
+		}
+		else
+		{
+			my($results)=$globalcache->{$create_domain};
+			my($result_single)=();
+			$result_single->{id}=$response_rid;
+			$result_single->{ip}=$new_ip;
+			$result_single->{type}=$type;
+			push @{$results}, $result_single;
+			$globalcache->{$create_domain}=$results;
+			return 0;
 		}
 	}
-} while($#arguments>=0);
-if(($config_runmode_once+$config_runmode_simple+$config_runmode_forking)!=1)
-{
-	die("Error: Cannot recognize which runmode which you want to use.\n")
-}
-if($config_runmode_once==1)
-{
-	$config_runmode='single';
-}
-if($config_runmode_simple==1)
-{
-	$config_runmode='simple';
-}
-if($config_runmode_forking==1)
-{
-	$config_runmode='forking';
-}
-}
-
-## Pre Processing
-{
-if(!(-e $file_config))
-{
-	die ("Error: Configuration file \"$file_config\" don't exist.\n");
-}
-}
-
-## Function Block 1
-sub mkfork
-{
-	my($pidfile)=@_;
-	if(-e $pidfile)
+	sub cloudflare_dns_update
 	{
-		open OLDPID,"<$pidfile";
-		chomp($oldpid=<OLDPID>);
-		close OLDPID;
-		if(-e "/proc/$oldpid/cmdline")
+		my($username,$password,$zid,$rid,$type,$update_domain,$new_ip)=@_;
+		my($execstr)='curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/'.$zid.'/dns_records/'.$rid.'" -H "Content-Type:application/json" -H "X-Auth-Key:'.$password.'" -H "X-Auth-Email:'.$username.'" --data \'{"type":"'.$type.'","name":"'.$update_domain.'","content":"'.$new_ip.'"}\'';
+		my($decoded_json)=json_curl($execstr);
+		my($response_success)=$decoded_json->{success};
+		if(!$response_success)
 		{
-			open OLDCOMM,"/proc/$oldpid/cmdline";
-			chomp($oldcomm=<OLDCOMM>);
-			close OLDCOMM;
-			if($oldcomm=~/$progname/)
+			return 1;
+		}
+		else
+		{
+			my($results)=$globalcache->{$update_domain};
+			my($new_results)=();
+			foreach $rec_result(@{$results})
 			{
-				die("Error: A formerly process is still running. PID: $oldpid.\n");
+				$rec_type=$rec_result->{type};
+				if($rec_type eq $type)
+				{
+					$rec_type->{ip}=$new_ip;
+				}
+				push @{$new_results}, $rec_result;
 			}
+			$globalcache->{$update_domain}=$new_results;
+			return 0;
 		}
 	}
-	if(!(-W dirname($pidfile)))
-	{
-		die("Error: Cannot write PID to ${pidfile}, permission denied.\n");
-	}
-	my($pid)=fork();
-	if(!(defined($pid)))
-	{
-		die("Error: Forking failed.\n");
-	}
-	if($pid)
-	{
-		open PIDFD, ">$pidfile";
-		print PIDFD $pid;
-		close PIDFD;
-		print "Started Dynamic DNS Client Daemon, PID: $pid.\n";
-		exit(0);
-	}
-	setpgrp();
-	setsid();
-	chdir("/");
-	umask(0);
-	close STDERR;
-	close STDOUT;
-	close STDIN;
 }
-sub json_preprocess
-{
-	chomp(my(@source)=@_);
-	my($result)='';
-	foreach $recline(@source)
-	{
-		$recline=~s/^\s+//g;
-		$recline=~s/\s+$//g;
-		$result=$result.$recline;
-	}
-	return $result;
-}
-sub json_curl
-{
-	my($command)=@_;
-	my($result)=();
-	while(1)
-	{
-		my(@response)=();
-		do
-		{
-			@response=readpipe($command);
-		} while(!@response);
-		my($processed)=json_preprocess(@response);
-		eval { $result=decode_json($processed) };
-		if(!$@)
-		{
-			last;
-		}
-	}
-	return $result;
-}
-sub json_configload
-{
-	my($filename)=@_;
-	open CONF,"<$filename";
-	my(@config_preraw)=();
-	chomp(@configs_preraw=<CONF>);
-	close CONF;
-	my($configs_raw)=json_preprocess(@configs_preraw);
-	my($configs)=();
-	eval { $configs=decode_json($configs_raw) };
-	if($@)
-	{
-		die("Error: Malformed JSON in config file.\n");
-	}
-	return $configs;
-}
-sub cloudflare_zid_lookup
-{
-	my($username,$password,$update_rootdomain)=@_;
-	my($return)='';
-	my($decoded_json)=json_curl('curl -s -X GET "https://api.cloudflare.com/client/v4/zones" -H "Content-Type:application/json" -H "X-Auth-Key:'.$password.'" -H "X-Auth-Email:'.$username.'"');
-	my($zones_success)=$decoded_json->{success};
-	if(!$zones_success)
-	{
-		return -1;
-	}
-	my($zone_count)=($decoded_json->{result_info}->{count})-1;
-	my($rec_zone_count)=0;
-	for($rec_zone_count=0;$rec_zone_count<=$zone_count;$rec_zone_count++)
-	{
-		my($rec_zone_name)=$decoded_json->{result}->[$rec_zone_count]->{name};
-		if($rec_zone_name eq $update_rootdomain)
-		{
-			my($rec_zone_id)=$decoded_json->{result}->[$rec_zone_count]->{id};
-			$return=$rec_zone_id;
-			last;
-		}
-	}
-	return $return;
-}
-sub cloudflare_record_lookup
-{
-	my($username,$password,$update_domain,$zone_id)=@_;
-	my($return)=();
-	my($decoded_json)=json_curl('curl -s -X GET "https://api.cloudflare.com/client/v4/zones/'.$zone_id.'/dns_records?name='.$update_domain.'" -H "Content-Type:application/json" -H "X-Auth-Key:'.$password.'" -H "X-Auth-Email:'.$username.'"');
-	my($records_success)=$decoded_json->{success};
-	if(!$records_success)
-	{
-		return -1;
-	}
-	my($results)=$decoded_json->{result};
-	foreach $rec_result(@{$results})
-	{
-		my($result_single)=();
-		$result_single->{id}=$rec_result->{id};
-		$result_single->{ip}=$rec_result->{content};
-		$result_single->{type}=$rec_result->{type};
-		push @{$return}, $result_single;
-	}
-	return $return;
-}
-sub cloudflare_dns_update
-{
-	my($username,$password,$zid,$rid,$type,$update_domain,$new_ip)=@_;
-	my($execstr)='curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/'.$zid.'/dns_records/'.$rid.'" -H "Content-Type:application/json" -H "X-Auth-Key:'.$password.'" -H "X-Auth-Email:'.$username.'" --data \'{"type":"'.$type.'","name":"'.$update_domain.'","content":"'.$new_ip.'"}\'';
-	my($decoded_json)=json_curl($execstr);
-	my($response_success)=$decoded_json->{success};
-	if(!$response_success)
-	{
-		return 1;
-	}
-	else
-	{
-		return 0;
-	}
-}
-
 ## Config Processing
 {
-$decoded_config=json_configload($file_config);
-$config_version=$decoded_config->{confver};
-$config_log_pre=$decoded_config->{log};
-$config_log='';
-$config_loglevel=$decoded_config->{loglevel};
-$config_iplookup=$decoded_config->{lookup4};
-$config_ip6lookup=$decoded_config->{lookup6};
-$config_deploys=$decoded_config->{deploys};
-if($config_version!=$version_config)
-{
-	die("Error: Incompatible configuation file, check your configuration version.\n");
+	$decoded_config=json_configload($file_config);
+	$config_version=$decoded_config->{confver};
+	$config_log_pre=$decoded_config->{log};
+	$config_log='';
+	$config_loglevel=$decoded_config->{loglevel};
+	$config_iplookup=$decoded_config->{lookup4};
+	$config_ip6lookup=$decoded_config->{lookup6};
+	$config_deploys=$decoded_config->{deploys};
+	if($config_version!=$version_config)
+	{
+		die("Error: Incompatible configuation file, check your configuration version.\n");
+	}
+	if($config_log_pre=~/^\//)
+	{
+		$config_log=$config_log_pre;
+	}
+	else
+	{
+		$config_log=$pwd."/".$config_log_pre;
+	}
 }
-if($config_log_pre=~/^\//)
-{
-	$config_log=$config_log_pre;
-}
-else
-{
-	$config_log=$pwd."/".$config_log_pre;
-}
-}
-
 ## Function Block 2 (Depended with Configuration Loaded)
-sub ip_lookup
 {
-	my($type)=@_;
-	if($type eq 'A')
+	sub ip_lookup
 	{
-		my($address)=readpipe('curl -s '.$config_iplookup);
-		if($address)
+		my($type,$interface)=@_;
+		my($address)='';
+		my($failcount)=0;
+		while($address eq '')
 		{
-			return $address;
+			if($type eq 'A')
+			{
+				if($interface eq '')
+				{
+					$address=readpipe('curl -s '.$config_iplookup);
+				}
+				else
+				{
+					$address=readpipe('curl -s --interface '.$interface.' '.$config_iplookup);
+				}
+			}
+			elsif($type eq 'AAAA')
+			{
+				if($interface eq '')
+				{
+					$address=readpipe('curl -s '.$config_ip6lookup);
+				}
+				else
+				{
+					$address=readpipe('curl -s --interface '.$interface.' '.$config_ip6lookup);
+				}
+			}
+			else
+			{
+				return -2;
+			}
+			$failcount++;
+			if($fallcount>=8)
+			{
+				return -1;
+			}
 		}
-		else
-		{
-			return -1;
-		}
+		return $address;
 	}
-	elsif($type eq 'AAAA')
+	sub log_process
 	{
-		my($address)=readpipe('curl -s '.$config_ip6lookup);
-		if($address)
-		{
-			return $address;
-		}
-		else
-		{
-			return -1;
-		}
-	}
-	else
-	{
-		return -1;
-	}
-}
-sub log_process
-{
-	my($level,$message)=@_;
-	open LOGFD,">>$config_log";
-	my($nowtime);
-	chomp($nowtime=readpipe("date '+[%F %T %Z]'"));
-	my($maxlevel)=$config_loglevel;
-	if(!(defined($maxlevel)))
-	{
-		$maxlevel=1;
-	}
-	else
-	{
-		if(!($maxlevel=~/^\d+$/))
+		my($level,$message)=@_;
+		open LOGFD,">>$config_log";
+		my($nowtime)=strftime("[%F %T %Z]",localtime);
+		my($maxlevel)=$config_loglevel;
+		if(!(defined($maxlevel)))
 		{
 			$maxlevel=1;
 		}
 		else
 		{
-			if(($maxlevel<0)||($maxlevel>2))
+			if(!($maxlevel=~/^\d+$/))
 			{
 				$maxlevel=1;
 			}
-		}
-	}
-	if($level<=$maxlevel)
-	{
-		print $message;
-		print LOGFD "$nowtime $message";
-	}
-	close LOGFD;
-}
-sub cloudflare_apply
-{
-	my(@arguments)=@_;
-	my($root)=shift @arguments;
-	my($username)=shift @arguments;
-	my($password)=shift @arguments;
-	my(@deploy)=@arguments;
-	$zid=cloudflare_zid_lookup($username,$password,$root);
-	if($zid==-1)
-	{
-		log_process(0,"CF4_FINDZID(${root}): Not a vaild response, please check your account or it just a temporary failure.\n");
-	}
-	if($zid eq '')
-	{
-		log_process(0,"CF4_FINDZID(${root}): Cannot find ${root} zone associated with this accountant.\n");
-	}
-	foreach $recdeploy(@deploy)
-	{
-		my($realdomain)='';
-		if(($recdeploy ne '@')&&($recdeploy ne ''))
-		{
-			$realdomain="${recdeploy}.${root}";
-		}
-		else
-		{
-			$realdomain="${root}";
-		}
-		my($records)=cloudflare_record_lookup($username,$password,$realdomain,$zid);
-		if($records==-1)
-		{
-			log_process(0,"CF4_FINDREC(${realdomain}): Not a vaild response, please check your account or it just a temporary failure.\n");
-		}
-		if(!@{$records})
-		{
-			log_process(0,"CF4_FINDRID(${realdomain}): Cannot find any existing A/AAAA DNS record.\n");
-		}
-		foreach $rec_record(@{$records})
-		{
-			$rid=$rec_record->{id};
-			$rtype=$rec_record->{type};
-			$rip=$rec_record->{ip};
-			$lip=-1;
-			$failcount=0;
-			while($lip==-1)
+			else
 			{
-				$lip=ip_lookup($rtype);
-				if($failcount>=8)
+				if(($maxlevel<0)||($maxlevel>2))
 				{
-					last;
+					$maxlevel=1;
 				}
-				$failcount++;
 			}
-			if($failcount>=8)
-			{
-				log_process(0,"CF4_LOOKUP(${realdomain} - ${rtype}): Cannot lookup a vaild IP for current client, max tries reached.\n");
-				next;
-			}
+		}
+		if($level<=$maxlevel)
+		{
+			print $message;
+			print LOGFD "$nowtime $message";
+		}
+		close LOGFD;
+	}
+	sub cloudflare_apply_core
+	{
+		my($username,$password,$zid,$type,$domain,$interface,$rid,$rip)=@_;
+		my($lip)=ip_lookup($type,$interface);
+		if($lip==-2)
+		{
+			return -1;
+		}
+		if($lip==-1)
+		{
+			log_process(0,"CF4_LOOKUP(${realdomain} - ${rtype}): Cannot lookup a vaild IP for current client, max tries reached.\n");
+			return -1;
+		}
+		if((defined($rid))&&(defined($rip)))
+		{
 			if($rip ne $lip)
 			{
-				my($response)=cloudflare_dns_update($username,$password,$zid,$rid,$rtype,$realdomain,$lip);
+				my($response)=cloudflare_dns_update($username,$password,$zid,$rid,$type,$domain,$lip);
 				if($response==0)
 				{
-					log_process(1,"CF4_UPDATE(${realdomain} - ${rtype}): Updated record from ${rip} to ${lip}.\n");
+					if($interface eq "")
+					{
+						log_process(1,"CF4_UPDATE(${domain} - ${type}): Updated record from ${rip} to ${lip}.\n");
+					}
+					else
+					{
+						log_process(1,"CF4_UPDATE(${domain} - ${type}): Updated record from ${rip} to ${lip} via ${interface}.\n");
+					}
 				}
 				else
 				{
-					log_process(0,"CF4_UPDATE(${realdomain} - ${rtype}): Failed to update record.\n");
+					log_process(0,"CF4_UPDATE(${domain} - ${type}): Failed to update record.\n");
 				}
 			}
 			else
 			{
-				log_process(2,"CF4_UPDATE(${realdomain} - ${rtype}): IP not changed, ignored.\n");
+				log_process(2,"CF4_UPDATE(${domain} - ${type}): IP not changed, ignored.\n");
+			}
+		}
+		else
+		{
+			my($response)=cloudflare_dns_create($username,$password,$zid,$type,$domain,$lip);
+			if($response==0)
+			{
+				if($interface eq "")
+				{
+					log_process(1,"CF4_CREATE(${domain} - ${type}): Created record binds to ${lip}.\n");
+				}
+				else
+				{
+					log_process(1,"CF4_CREATE(${domain} - ${type}): Created record binds to ${lip} via ${interface}.\n");
+				}
+			}
+			else
+			{
+				log_process(0,"CF4_CREATE(${domain} - ${type}): Failed to create record.\n");
 			}
 		}
 	}
-}
-sub cloudflare_run
-{
-	foreach $rec_deploys(@{$config_deploys})
+	sub cloudflare_apply
 	{
-		my($config_root)=$rec_deploys->{root};
-		my($config_username)=$rec_deploys->{username};
-		my($config_password)=$rec_deploys->{password};
-		my(@config_deploy)=@{$rec_deploys->{deploy}};
-		cloudflare_apply($config_root,$config_username,$config_password,@config_deploy);
+		my(@arguments)=@_;
+		my($root)=shift @arguments;
+		my($username)=shift @arguments;
+		my($password)=shift @arguments;
+		my(@deploy)=@arguments;
+		my($zid)=cloudflare_zid_lookup($username,$password,$root);
+		if($zid==-1)
+		{
+			log_process(0,"CF4_FINDZID(${root}): Not a vaild response, please check your account or it just a temporary failure.\n");
+		}
+		if($zid eq '')
+		{
+			log_process(0,"CF4_FINDZID(${root}): Cannot find ${root} zone associated with this accountant.\n");
+		}
+		foreach $recdeploy(@deploy)
+		{
+			my($realdomain);
+			my($recdeploy_name)=$recdeploy->{name};
+			my($recdeploy_automode)=1;
+			my($recdeploy_interface4)=$recdeploy->{interface4};
+			my($recdeploy_interface6)=$recdeploy->{interface6};
+			if(($recdeploy_name ne '@')&&($recdeploy_name ne ''))
+			{
+				$realdomain="${recdeploy_name}.${root}";
+			}
+			else
+			{
+				$realdomain="${root}";
+			}
+			if(defined($recdeploy->{automode}))
+			{
+				$recdeploy_automode=$recdeploy->{automode};
+				if(($recdeploy_automode!=1)&&($recdeploy_automode!=0))
+				{
+					$recdeploy_automode=1;
+				}
+			}
+			my($records)=cloudflare_record_lookup($username,$password,$realdomain,$zid);
+			if($records==-1)
+			{
+				log_process(0,"CF4_FINDREC(${realdomain}): Not a vaild response, please check your account or it just a temporary failure.\n");
+			}
+			if($recdeploy_automode==1)
+			{
+				if(!@{$records})
+				{
+					log_process(0,"CF4_FINDREC(${realdomain}): Cannot find any existed A/AAAA DNS record.\n");
+					next;
+				}
+				else
+				{
+					foreach $rec_record(@{$records})
+					{
+						my($rid)=$rec_record->{id};
+						my($rtype)=$rec_record->{type};
+						my($rip)=$rec_record->{ip};
+						cloudflare_apply_core($username,$password,$zid,$rtype,$realdomain,'',$rid,$rip);
+					}
+				}
+			}
+			else
+			{
+				my($recdeploy_deploy4);
+				my($recdeploy_deploy6);
+				foreach $rec_record(@{$records})
+				{
+					my($rec_record_id)=$rec_record->{id};
+					my($rec_record_ip)=$rec_record->{ip};
+					my($rec_record_type)=$rec_record->{type};
+					if($rec_record_type eq 'A')
+					{
+						$recdeploy_deploy4->{id}=$rec_record_id;
+						$recdeploy_deploy4->{ip}=$rec_record_ip;
+						$recdeploy_deploy4->{type}=$rec_record_type;
+					}
+					if($rec_record_type eq 'AAAA')
+					{
+						$recdeploy_deploy6->{id}=$rec_record_id;
+						$recdeploy_deploy6->{ip}=$rec_record_ip;
+						$recdeploy_deploy6->{type}=$rec_record_type;
+					}
+				}
+				my($rid);
+				my($rtype);
+				my($rip);
+				if(defined($recdeploy_interface4))
+				{
+					if(defined($recdeploy_deploy4))
+					{
+						$rid=$recdeploy_deploy4->{id};
+						$rtype=$recdeploy_deploy4->{type};
+						$rip=$recdeploy_deploy4->{ip};
+					}
+					else
+					{
+						$rtype='A';
+					}
+					cloudflare_apply_core($username,$password,$zid,$rtype,$realdomain,$recdeploy_interface4,$rid,$rip);
+				}
+				if(defined($recdeploy_interface6))
+				{
+					if(defined($recdeploy_deploy6))
+					{
+						$rid=$recdeploy_deploy6->{id};
+						$rtype=$recdeploy_deploy6->{type};
+						$rip=$recdeploy_deploy6->{ip};
+					}
+					else
+					{
+						$rtype='AAAA';
+					}
+					cloudflare_apply_core($username,$password,$zid,$rtype,$realdomain,$recdeploy_interface6,$rid,$rip);
+				}
+			}
+		}
+	}
+	sub cloudflare_run
+	{
+		foreach $rec_deploys(@{$config_deploys})
+		{
+			my($config_root)=$rec_deploys->{root};
+			my($config_username)=$rec_deploys->{username};
+			my($config_password)=$rec_deploys->{password};
+			my(@config_deploy)=@{$rec_deploys->{deploy}};
+			cloudflare_apply($config_root,$config_username,$config_password,@config_deploy);
+		}
 	}
 }
-
 ## Main Process
 {
-if($config_runmode eq 'single')
-{
-	print "Started Dynamic DNS Client Daemon, just run once.\n";
-	cloudflare_run;
-}
-else
-{
-	$config_daemon=$decoded_config->{tick};
-	if($config_runmode eq 'forking')
+	if($config_runmode eq 'single')
 	{
-		mkfork($config_additional_pid);
-	}
-	if($config_runmode eq 'simple')
-	{
-		print "Started Dynamic DNS Client Daemon.\nUse Ctrl-C or send a signal to stop it.\n";
-	}
-	while(1)
-	{
+		print "Started Dynamic DNS Client Daemon, just run once.\n";
 		cloudflare_run;
-		sleep($config_daemon);
 	}
-}
+	else
+	{
+		$config_daemon=$decoded_config->{tick};
+		if($config_runmode eq 'forking')
+		{
+			mkfork($config_additional_pid);
+		}
+		if($config_runmode eq 'simple')
+		{
+			print "Started Dynamic DNS Client Daemon.\nUse Ctrl-C or send a signal to stop it.\n";
+		}
+		while(1)
+		{
+			cloudflare_run;
+			sleep($config_daemon);
+		}
+	}
 }

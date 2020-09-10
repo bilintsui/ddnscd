@@ -1,6 +1,6 @@
 {
-	"confver": 3, # Version of configuration file. See: versions.json on https://github.com/bilintsui/ddnscd
-	"log":"/var/log/ddnscd.log",	# Filename which logs saved to.
+	"confver": 4, # Version of configuration file. See: versions.json on https://github.com/bilintsui/ddnscd
+	"log":"/var/log/ddnscd/ddnscd.log",	# Filename which logs saved to.
 	"loglevel":1,	# Optional, default 1. 0: Errors only; 1: Errors and Updates; 2: All messages.
 	"tick":600,	# Optional, required when runmode=simple/forking. Unit: second. Time of intervals between each run.
 	"lookup4":"https://api4.xmrx1999.com/ip.php",	# URL of IPv4 Lookup service.
@@ -13,8 +13,19 @@
 			"password":"examplepassword",	# Your password.
 			"deploy":	# List of domain names which you want to deploy to.
 			[
-				"1.ddns",	# Refer to 1.ddns.example.com.
-				"2.ddns"
+				{
+					"name": "1.ddns", # Refer to 1.ddns.example.com.
+					"automode": true, # Optional, default true. When enabled, program will auto detect DNS record and update it which had already existed. You can't create a new DNS record when automode is enabled.
+					# You need to specify "interface4" or "interface6" or both if you want to create/update a DNS record when automode is disabled. Otherwise it will not create/update.
+					"interface4": "", # Optional, when automode is disabled, create/update an A record with an IPv4 address. Leave blank to use default interface.
+					"interface6": "" # Optional, when automode is disabled, create/update an AAAA record with an IPv6 address. Leave blank to use default interface.
+				},
+				{
+					"name": "2.ddns",
+					"automode": true,
+					"interface4": "",
+					"interface6": ""
+				}
 			]
 		},
 		{
@@ -23,8 +34,18 @@
 			"password":"examplepassword2",
 			"deploy":
 			[
-				"1.ddns",
-				"2.ddns"
+				{
+					"name": "1.ddns",
+					"automode": true,
+					"interface4": "",
+					"interface6": ""
+				},
+				{
+					"name": "2.ddns",
+					"automode": true,
+					"interface4": "",
+					"interface6": ""
+				}
 			]
 		}
 	]

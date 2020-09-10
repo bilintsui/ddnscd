@@ -1,6 +1,6 @@
 #! /usr/bin/perl
-# Version: 1.2-beta8
-# Interval Version: 10
+# Version: 1.2
+# Interval Version: 11
 # Config Version: 4
 ## Defines
 {
@@ -10,11 +10,11 @@
 	$|=1;
 	$pwd=$ENV{'PWD'};
 	$globalcache=();
-	$version_interval=10;
+	$version_interval=11;
 	$version_config=4;
 	$version_major=1;
 	$version_minor=2;
-	$version_additional='(beta8)';
+	$version_additional='';
 	$version="$version_major.$version_minor$version_additional";
 	chomp($progname=basename($0));
 	$initmsg="Dynamic DNS Client Daemon v$version\n\nUsage:\n\t$progname <-o|s|f [-p pidfile]> [-c conf]\n\t$progname <-h|--help>\n\t$progname <-v|--version>\n\nSee more, watch: https://github.com/bilintsui/ddnscd\n(C) 2020 Bilin Tsui. Licensed with GNU GPL v3.";

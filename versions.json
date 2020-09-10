@@ -9,6 +9,7 @@
 		{"name": "1.2-beta4", "interval": 6, "conf": 2},
 		{"name": "1.2-beta5", "interval": 7, "conf": 2},
 		{"name": "1.2-beta6", "interval": 8, "conf": 3},
-		{"name": "1.2-beta7", "interval": 9, "conf": 3}
+		{"name": "1.2-beta7", "interval": 9, "conf": 3},
+		{"name": "1.2-beta8", "interval": 10, "conf": 4}
 	]
 }

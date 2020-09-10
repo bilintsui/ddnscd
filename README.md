@@ -15,46 +15,73 @@
 
 ## Files
 * ddnscd: Main program.
-* ddnscd.service.example: Example of Service Unit file for systemd.
 * config.json.example: config file of ddnscd.
-* configs/*: collections of configs in different runmode.
 * services/*: collections of systemd Service Unit files in different runmode.
 
 ## Usage
-ddnscd <-o|s|f [-p pidfile]> [-c conf]<br/>
-See more, use "ddnscd -h" or "ddnscd --help".
+<pre>
+ddnscd <-o|s|f [-p pidfile]> [-c conf]
+ddnscd <-h|--help>
+ddnscd <-v|--version>
+</pre>
 
 ## Configs
 ### Example
->{<br/>
->>"confver": 3, <br/>
->>"log": "/var/log/ddnscd.log", <br/>
->>"loglevel": 1, <br/>
->>"tick": 600, <br/>
->>"lookup4": "https://api4.xmrx1999.com/ip.php", <br/>
->>"lookup6": "https://api6.xmrx1999.com/ip.php", <br/>
->>"deploys": [<br/>
->>>{<br/>
->>>>"root": "example.com", <br/>
->>>>"username": "user@example.com", <br/>
->>>>"password": "examplepassword", <br/>
->>>>"deploy": [<br/>
->>>>>"1.ddns", <br/>
->>>>>"2.ddns"<br/>
->>>>]<br/>
->>>}, <br/>
->>>{<br/>
->>>>"root": "example2.com", <br/>
->>>>"username": "user@example2.com", <br/>
->>>>"password": "examplepassword2", <br/>
->>>>"deploy": [<br/>
->>>>>"1.ddns", <br/>
->>>>>"2.ddns"<br/>
->>>>]<br/>
->>>}<br/>
->>]<br/>
->}<br/>
- * confver: Config Version. Currently 3 for v1.2 beta 6.
+<pre>
+{
+	"confver": 4,
+	"log":"/var/log/dddnscd.log",
+	"loglevel":1,
+	"tick":600,
+	"lookup4":"https://api4.xmrx1999.com/ip.php",
+	"lookup6":"https://api6.xmrx1999.com/ip.php",
+	"deploys":
+	[
+		{
+			"root":"example.com",
+			"username":"user@example.com",
+			"password":"examplepassword",
+			"deploy":
+			[
+				{
+					"name": "1.ddns",
+					"automode": true,
+					"interface4": "",
+					"interface6": ""
+				},
+				{
+					"name": "2.ddns",
+					"automode": true,
+					"interface4": "",
+					"interface6": ""
+				}
+			]
+		},
+		{
+			"root":"example2.com",
+			"username":"user@example2.com",
+			"password":"examplepassword2",
+			"deploy":
+			[
+				{
+					"name": "1.ddns",
+					"automode": true,
+					"interface4": "",
+					"interface6": ""
+				},
+				{
+					"name": "2.ddns",
+					"automode": true,
+					"interface4": "",
+					"interface6": ""
+				}
+			]
+		}
+	]
+}
+</pre>
+### Explanation
+ * confver: Config Version. Currently 4 for v1.2 beta 8.
  * log: Filename which logs saved to.
  * loglevel: Optional, default 1. 0: Errors only; 1: Errors and Updates; 2: All messages.
  * tick: Optional, required when runmode=simple/forking. Unit: second. Time of intervals between each run.
@@ -64,4 +91,8 @@ See more, use "ddnscd -h" or "ddnscd --help".
  >* root: Your root domain. (eg: if you want to deploy "ddns.example.com", use "example.com" here.)
  >* username: Your account name. (In cloudflare, it should be your email address.)
  >* password: Your password. (In cloudflare, it should be your Cloudflare API Key.)
- >* deploy: Domain names which under your root domain. This name should without your root domain name. Use "@" or "" to refer your root domain.
+ >* deploy: Domain information and options which you want to update/create.
+ >>* name: Domain names which under your root domain. This name should without your root domain name. Use "@" or "" to refer your root domain.
+ >>* automode: Optional, use true/false, default true. Program will auto detect your existed DNS records and updated them(legacy method). If disabled, you can ask the program to update IPv4, IPv6 seperately or both through specific interface.
+ >>* interface4: Optional, only effects when automode=false. Define it if you want to update your IPv4 address. Use "" to use system default interface. Use interface name to Lookup your IPv4 address via specific interface.
+ >>* interface6: Optional, only effects when automode=false. Same with interface4 option, just the IPv6 version.

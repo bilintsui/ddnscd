@@ -81,7 +81,7 @@ ddnscd <-v|--version>
 }
 </pre>
 ### Explanation
- * confver: Config Version. Currently 4 for v1.2 beta 8.
+ * confver: Config Version. Currently 4 for v1.2.
  * log: Filename which logs saved to.
  * loglevel: Optional, default 1. 0: Errors only; 1: Errors and Updates; 2: All messages.
  * tick: Optional, required when runmode=simple/forking. Unit: second. Time of intervals between each run.

@@ -1,20 +1,21 @@
 #! /usr/bin/perl
-# Version: 1.2
-# Interval Version: 11
+# Version: 1.3-beta1
+# Interval Version: 12
 # Config Version: 4
 ## Defines
 {
+	use Module::Load;
 	use File::Basename;
 	use JSON;
 	use POSIX;
 	$|=1;
 	$pwd=$ENV{'PWD'};
 	$globalcache=();
-	$version_interval=11;
+	$version_interval=12;
 	$version_config=4;
 	$version_major=1;
-	$version_minor=2;
-	$version_additional='';
+	$version_minor=3;
+	$version_additional='(beta1)';
 	$version="$version_major.$version_minor$version_additional";
 	chomp($progname=basename($0));
 	$initmsg="Dynamic DNS Client Daemon v$version\n\nUsage:\n\t$progname <-o|s|f [-p pidfile]> [-c conf]\n\t$progname <-h|--help>\n\t$progname <-v|--version>\n\nSee more, watch: https://github.com/bilintsui/ddnscd\n(C) 2020 Bilin Tsui. Licensed with GNU GPL v3.";
@@ -271,6 +272,48 @@
 		}
 		return $configs;
 	}
+	sub sendmail
+	{
+		autoload Net::SMTP;
+		autoload Authen::SASL;
+		autoload MIME::Lite;
+		my($smtp_host,$smtp_port,$smtp_encryption,$smtp_user,$smtp_pass,$recipients,$subject,$message,$message_type)=@_;
+		my($conn);
+		if((!$smtp_encryption eq 'PLAIN')&&(!$smtp_encryption eq 'SSL')&&(!$smtp_encryption eq 'STARTTLS'))
+		{
+			return 1;
+		}
+		if($smtp_encryption eq 'SSL')
+		{
+			$conn=Net::SMTP->new($smtp_host,Port=>$smtp_port,SSL=>1);
+		}
+		else
+		{
+			$conn=Net::SMTP->new($smtp_host,Port=>$smtp_port);
+		}
+		if(!defined($conn))
+		{
+			return 2;
+		}
+		if($smtp_encryption eq 'STARTTLS')
+		{
+			$conn->starttls();
+		}
+		my($auth)=Authen::SASL->new(callback=>{user=>$smtp_user,pass=>$smtp_pass});
+		$conn->auth($auth) or return 3;
+		$conn->mail($smtp_user);
+		my(@recvs)=split /,/,$recipients;
+		foreach $rec_recv(@recvs)
+		{
+			$conn->recipient($rec_recv);
+		}
+		my($data)=MIME::Lite->new(From=>$smtp_user,To=>$recipients,Subject=>$subject,Data=>$message,Type=>$message_type);
+		$conn->data();
+		$conn->datasend($data->as_string());
+		$conn->dataend();
+		$conn->quit();
+		return 0;
+	}
 	sub cloudflare_zid_lookup
 	{
 		my($username,$password,$update_rootdomain)=@_;
@@ -409,6 +452,7 @@
 	$config_iplookup=$decoded_config->{lookup4};
 	$config_ip6lookup=$decoded_config->{lookup6};
 	$config_deploys=$decoded_config->{deploys};
+	$config_smtp=$decoded_config->{smtp};
 	if($config_version!=$version_config)
 	{
 		die("Error: Incompatible configuation file, check your configuration version.\n");
@@ -496,9 +540,21 @@
 		}
 		close LOGFD;
 	}
+	sub mailnotice
+	{
+		my($recipients,$domain,$ip,$interval)=@_;
+		my($smtp_host)=$config_smtp->{host};
+		my($smtp_port)=$config_smtp->{port};
+		my($smtp_encryption)=$config_smtp->{ency};
+		my($smtp_user)=$config_smtp->{user};
+		my($smtp_pass)=$config_smtp->{pass};
+		my($message)="Dynamic DNS Client Daemon\nNOTICE OF IP CHANGES\n==================================================\nYour current IP has just changed.\nDomain name: $domain\nThe new IP: $ip\nDon't worry, it usually will updated when IP address changed.\nIf your DNS resolves don't updates, check it after $interval second(s), which the interval you asked ddnscd to check your IP.\nYou will receive this message because your email address is listed in the notice list.\n==================================================\nThis message is sent by a mailbot, not an actual person.\nDon't reply about this message.\nSent by: ddnscd v$version\n";
+		my($status)=sendmail($smtp_host,$smtp_port,$smtp_encryption,$smtp_user,$smtp_pass,$recipients,'ddnscd IP address change notice',$message,'text/plain');
+		return $status;
+	}
 	sub cloudflare_apply_core
 	{
-		my($username,$password,$zid,$type,$domain,$interface,$rid,$rip)=@_;
+		my($username,$password,$zid,$type,$domain,$interface,$rid,$rip,$notice)=@_;
 		my($lip)=ip_lookup($type,$interface);
 		if($lip==-2)
 		{
@@ -524,11 +580,32 @@
 					{
 						log_process(1,"CF4_UPDATE(${domain} - ${type}): Updated record from ${rip} to ${lip} via ${interface}.\n");
 					}
+					if((defined($notice))&&(defined($config_smtp)))
+					{
+						my($mailnotice_status)=mailnotice($notice,$domain,$lip,$config_daemon);
+						if($mailnotice_status==1)
+						{
+							log_process(0,"MAIL_NOTICE(${domain} - ${type}): Invalid SMTP encryption type.\n");
+						}
+						elsif($mailnotice_status==2)
+						{
+							log_process(0,"MAIL_NOTICE(${domain} - ${type}): Cannot connect the SMTP server.\n");
+						}
+						elsif($mailnotice_status==3)
+						{
+							log_process(0,"MAIL_NOTICE(${domain} - ${type}): SMTP login failed.\n");
+						}
+						else
+						{
+							log_process(1,"MAIL_NOTICE(${domain} - ${type}): Successfully send notice to ${notice}.\n");
+						}
+					}
 				}
 				else
 				{
 					log_process(0,"CF4_UPDATE(${domain} - ${type}): Failed to update record.\n");
 				}
+				
 			}
 			else
 			{
@@ -578,6 +655,7 @@
 			my($recdeploy_automode)=1;
 			my($recdeploy_interface4)=$recdeploy->{interface4};
 			my($recdeploy_interface6)=$recdeploy->{interface6};
+			my($recdeploy_notice)=$recdeploy->{notice};
 			if(($recdeploy_name ne '@')&&($recdeploy_name ne ''))
 			{
 				$realdomain="${recdeploy_name}.${root}";
@@ -613,7 +691,7 @@
 						my($rid)=$rec_record->{id};
 						my($rtype)=$rec_record->{type};
 						my($rip)=$rec_record->{ip};
-						cloudflare_apply_core($username,$password,$zid,$rtype,$realdomain,'',$rid,$rip);
+						cloudflare_apply_core($username,$password,$zid,$rtype,$realdomain,'',$rid,$rip,$recdeploy_notice);
 					}
 				}
 			}
@@ -654,7 +732,7 @@
 					{
 						$rtype='A';
 					}
-					cloudflare_apply_core($username,$password,$zid,$rtype,$realdomain,$recdeploy_interface4,$rid,$rip);
+					cloudflare_apply_core($username,$password,$zid,$rtype,$realdomain,$recdeploy_interface4,$rid,$rip,$recdeploy_notice);
 				}
 				if(defined($recdeploy_interface6))
 				{
@@ -668,7 +746,7 @@
 					{
 						$rtype='AAAA';
 					}
-					cloudflare_apply_core($username,$password,$zid,$rtype,$realdomain,$recdeploy_interface6,$rid,$rip);
+					cloudflare_apply_core($username,$password,$zid,$rtype,$realdomain,$recdeploy_interface6,$rid,$rip,$recdeploy_notice);
 				}
 			}
 		}

@@ -5,6 +5,14 @@
 	"tick":600,	# Optional, required when runmode=simple/forking. Unit: second. Time of intervals between each run.
 	"lookup4":"https://api4.xmrx1999.com/ip.php",	# URL of IPv4 Lookup service.
 	"lookup6":"https://api6.xmrx1999.com/ip.php",	# URL of IPv6 Lookup service.
+	"smtp": # Optional, configuration of Mail Notice Service.
+	{
+		"host": "smtp.example.com", # SMTP server address.
+		"port": 25, # SMTP server port.
+		"ency": "PLAIN", # Encryption type(case sensitive). PLAIN for SMTP(port usually 25), SSL for SMTPS(SSL, port usually 465), STARTTLS for SMTPS(STARTTLS, port usually 587).
+		"user": "example@example.com", # SMTP username which user you want to send email from.
+		"pass": "examplesmtppassword" # SMTP password which user you want to send email from.
+	},
 	"deploys":	# Deploy Information Section.
 	[
 		{
@@ -18,13 +26,15 @@
 					"automode": true, # Optional, default true. When enabled, program will auto detect DNS record and update it which had already existed. You can't create a new DNS record when automode is enabled.
 					# You need to specify "interface4" or "interface6" or both if you want to create/update a DNS record when automode is disabled. Otherwise it will not create/update.
 					"interface4": "", # Optional, when automode is disabled, create/update an A record with an IPv4 address. Leave blank to use default interface.
-					"interface6": "" # Optional, when automode is disabled, create/update an AAAA record with an IPv6 address. Leave blank to use default interface.
+					"interface6": "", # Optional, when automode is disabled, create/update an AAAA record with an IPv6 address. Leave blank to use default interface.
+					"notice": "" # Optional, when IP changed, send email to email addresses listed here. Seperate with comma when noticing multiple recipicents. Example: recv1@example.com,recv2@example.com
 				},
 				{
 					"name": "2.ddns",
 					"automode": true,
 					"interface4": "",
-					"interface6": ""
+					"interface6": "",
+					"notice": ""
 				}
 			]
 		},
@@ -38,13 +48,15 @@
 					"name": "1.ddns",
 					"automode": true,
 					"interface4": "",
-					"interface6": ""
+					"interface6": "",
+					"notice": ""
 				},
 				{
 					"name": "2.ddns",
 					"automode": true,
 					"interface4": "",
-					"interface6": ""
+					"interface6": "",
+					"notice": ""
 				}
 			]
 		}

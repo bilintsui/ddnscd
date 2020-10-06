@@ -5,13 +5,8 @@
 
 ## Requirements
 * Linux
-* Perl, and module JSON, File::Basename, POSIX
-* curl
-
-## Install Perl Module: JSON
-* apt(like Debian, Ubuntu): apt install libjson-perl
-* yum/dnf(like Fedora, RHEL, CentOS): yum install perl-JSON
-* pacman(like ArchLinux): pacman -S perl-json
+* Perl, and module Module::Load, File::Basename, POSIX, WWW::Curl::Easy, JSON
+* (Optional)Perl module: Net::SMTP, Authen::SASL, MIME::Lite (Required when you enable mail notice.)
 
 ## Files
 * ddnscd: Main program.
@@ -35,6 +30,14 @@ ddnscd <-v|--version>
 	"tick":600,
 	"lookup4":"https://api4.xmrx1999.com/ip.php",
 	"lookup6":"https://api6.xmrx1999.com/ip.php",
+	"smtp":
+	{
+		"host": "smtp.example.com",
+		"port": 25,
+		"ency": "PLAIN",
+		"user": "example@example.com",
+		"pass": "examplesmtppassword"
+	},
 	"deploys":
 	[
 		{
@@ -47,13 +50,15 @@ ddnscd <-v|--version>
 					"name": "1.ddns",
 					"automode": true,
 					"interface4": "",
-					"interface6": ""
+					"interface6": "",
+					"notice": ""
 				},
 				{
 					"name": "2.ddns",
 					"automode": true,
 					"interface4": "",
-					"interface6": ""
+					"interface6": "",
+					"notice": ""
 				}
 			]
 		},
@@ -67,13 +72,15 @@ ddnscd <-v|--version>
 					"name": "1.ddns",
 					"automode": true,
 					"interface4": "",
-					"interface6": ""
+					"interface6": "",
+					"notice": ""
 				},
 				{
 					"name": "2.ddns",
 					"automode": true,
 					"interface4": "",
-					"interface6": ""
+					"interface6": "",
+					"notice": ""
 				}
 			]
 		}
@@ -87,6 +94,12 @@ ddnscd <-v|--version>
  * tick: Optional, required when runmode=simple/forking. Unit: second. Time of intervals between each run.
  * lookup4: A URL which provides your public IP(IPv4), it should return IP only.
  * lookup6: A URL which provides your public IP(IPv6), it should return IP only.
+ * smtp: Optional, only effects when Mail notice service enabled.
+ >* host: SMTP server address.
+ >* port: SMTP server port.
+ >* ency: Encryption type(case sensitive). PLAIN for SMTP(port usually 25), SSL for SMTPS(SSL, port usually 465), STARTTLS for SMTPS(STARTTLS, port usually 587).
+ >* user: SMTP username which user you want to send email from.
+ >* pass: SMTP password which user you want to send email from.
  * deploys: Deploy Information Section.
  >* root: Your root domain. (eg: if you want to deploy "ddns.example.com", use "example.com" here.)
  >* username: Your account name. (In cloudflare, it should be your email address.)
@@ -96,3 +109,4 @@ ddnscd <-v|--version>
  >>* automode: Optional, use true/false, default true. Program will auto detect your existed DNS records and updated them(legacy method). If disabled, you can ask the program to update IPv4, IPv6 seperately or both through specific interface.
  >>* interface4: Optional, only effects when automode=false. Define it if you want to update your IPv4 address. Use "" to use system default interface. Use interface name to Lookup your IPv4 address via specific interface.
  >>* interface6: Optional, only effects when automode=false. Same with interface4 option, just the IPv6 version.
+ >>* notice: Optional, when IP changed, send email to email addresses listed here. Seperate with comma when noticing multiple recipicents. Example: recv1@example.com,recv2@example.com

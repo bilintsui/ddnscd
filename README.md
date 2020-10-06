@@ -5,9 +5,8 @@
 
 ## Requirements
 * Linux
-* Perl, and module JSON, File::Basename, POSIX, Module::Load
+* Perl, and module Module::Load, File::Basename, POSIX, WWW::Curl::Easy, JSON
 * (Optional)Perl module: Net::SMTP, Authen::SASL, MIME::Lite (Required when you enable mail notice.)
-* curl
 
 ## Files
 * ddnscd: Main program.

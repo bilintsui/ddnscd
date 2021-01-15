@@ -1,6 +1,9 @@
 #! /usr/bin/perl
-# Version: 1.3-beta2
-# Interval Version: 13
+### Dynamic DNS Client Daemon
+### (C) 2020 Bilin Tsui, licensed with GNU General Public License version 3. (GNU GPL v3)
+### Full text of GNU GPL v3: watch https://www.gnu.org/licenses/gpl-3.0.html.
+# Version: 1.3
+# Interval Version: 14
 # Config Version: 4
 ## Defines
 {
@@ -13,11 +16,11 @@
 	$pwd=$ENV{'PWD'};
 	$globalcache=();
 	@msgqueue=();
-	$version_interval=13;
+	$version_internal=14;
 	$version_config=4;
 	$version_major=1;
 	$version_minor=3;
-	$version_additional='(beta2)';
+	$version_additional='';
 	$version="$version_major.$version_minor$version_additional";
 	chomp($progname=basename($0));
 	$initmsg="Dynamic DNS Client Daemon v$version\n\nUsage:\n\t$progname <-o|s|f [-p pidfile]> [-c conf]\n\t$progname <-h|--help>\n\t$progname <-v|--version>\n\nSee more, watch: https://github.com/bilintsui/ddnscd\n(C) 2020 Bilin Tsui. Licensed with GNU GPL v3.";
@@ -54,7 +57,7 @@
 					}
 					elsif($rec_subargu eq 'v')
 					{
-						die("v$version $version_interval,$version_config\n");
+						die("v$version $version_internal,$version_config\n");
 					}
 					elsif($rec_subargu eq 'c')
 					{
@@ -112,7 +115,7 @@
 			}
 			elsif($rec_argu eq 'version')
 			{
-				die("v$version $version_interval,$version_config\n");
+				die("v$version $version_internal,$version_config\n");
 			}
 			elsif($rec_argu eq 'conf')
 			{

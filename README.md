@@ -25,7 +25,7 @@ ddnscd <-v|--version>
 <pre>
 {
 	"confver": 4,
-	"log":"/var/log/dddnscd.log",
+	"log":"/var/log/ddnscd/ddnscd.log",
 	"loglevel":1,
 	"tick":600,
 	"lookup4":"https://api4.xmrx1999.com/ip.php",

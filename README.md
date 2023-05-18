@@ -7,10 +7,11 @@
 * Linux
 * Perl, and module Module::Load, File::Basename, POSIX, WWW::Curl::Easy, JSON
 * (Optional)Perl module: Net::SMTP, Authen::SASL, MIME::Lite (Required when you enable mail notice.)
+* (Optional)Perl module: JSON (Required when your IPv4/IPv6 lookup service returns a JSON data.
 
 ## Files
 * ddnscd: Main program.
-* config.json.example: config file of ddnscd.
+* config.example.json: config file of ddnscd.
 * services/*: collections of systemd Service Unit files in different runmode.
 
 ## Usage
@@ -29,7 +30,9 @@ ddnscd <-v|--version>
 	"loglevel":1,
 	"tick":600,
 	"lookup4":"https://api4.xmrx1999.com/ip.php",
+	"lookup4key":"",
 	"lookup6":"https://api6.xmrx1999.com/ip.php",
+	"lookup6key":"",
 	"smtp":
 	{
 		"host": "smtp.example.com",
@@ -88,12 +91,14 @@ ddnscd <-v|--version>
 }
 </pre>
 ### Explanation
- * confver: Config Version. Currently 4 for v1.2.
+ * confver: Config Version. Currently 4 for v1.2 and onward.
  * log: Filename which logs saved to.
  * loglevel: Optional, default 1. 0: Errors only; 1: Errors and Updates; 2: All messages.
  * tick: Optional, required when runmode=simple/forking. Unit: second. Time of intervals between each run.
  * lookup4: A URL which provides your public IP(IPv4), it should return IP only.
+ * lookup4key: JSON key name on root if IPv4 Lookup service returns a JSON.
  * lookup6: A URL which provides your public IP(IPv6), it should return IP only.
+ * lookup6key: JSON key name on root if IPv4 Lookup service returns a JSON.
  * smtp: Optional, only effects when Mail notice service enabled.
  >* host: SMTP server address.
  >* port: SMTP server port.

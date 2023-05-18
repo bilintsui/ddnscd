@@ -4,7 +4,9 @@
 	"loglevel":1,	# Optional, default 1. 0: Errors only; 1: Errors and Updates; 2: All messages.
 	"tick":600,	# Optional, required when runmode=simple/forking. Unit: second. Time of intervals between each run.
 	"lookup4":"https://api4.xmrx1999.com/ip.php",	# URL of IPv4 Lookup service.
+	"lookup4key":"",	# JSON key name on root if IPv4 Lookup service returns a JSON.
 	"lookup6":"https://api6.xmrx1999.com/ip.php",	# URL of IPv6 Lookup service.
+	"lookup6key":"",	# JSON key name on root if IPv6 Lookup service returns a JSON.
 	"smtp": # Optional, configuration of Mail Notice Service.
 	{
 		"host": "smtp.example.com", # SMTP server address.

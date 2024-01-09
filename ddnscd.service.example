@@ -1,0 +1,14 @@
+[Unit]
+Description=Dynamic DNS Client Daemon
+Documentation=https://github.com/bilintsui/ddnscd
+After=network.target network-online.target
+
+[Service]
+DynamicUser=yes
+LogsDirectory=ddnscd
+Restart=on-failure
+RestartSec=5s
+ExecStart=/usr/bin/ddnscd -s -c /etc/ddnscd/config.json
+
+[Install]
+WantedBy=multi-user.target

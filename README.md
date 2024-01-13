@@ -12,7 +12,7 @@
 ## Files
 * ddnscd: Main program.
 * config.example.json: config file of ddnscd.
-* services/*: collections of systemd Service Unit files in different runmode.
+* ddnscd.service.example: collections of systemd Service Unit files in different runmode.
 
 ## Usage
 <pre>

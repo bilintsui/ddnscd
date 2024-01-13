@@ -30,7 +30,7 @@ ddnscd <-v|--version>
 ### Example
 <pre>
 {
-	"confver": 4,
+	"confver": 5,
 	"log":"/var/log/ddnscd/ddnscd.log",
 	"loglevel":1,
 	"tick":600,
@@ -52,7 +52,7 @@ ddnscd <-v|--version>
 			"root":"example.com",
 			"username":"user@example.com",
 			"auth_type":"key",
-			"password":"examplepassword",
+			"password":"examplekey",
 			"deploy":
 			[
 				{
@@ -75,7 +75,7 @@ ddnscd <-v|--version>
 			"root":"example2.com",
 			"username":"user@example2.com",
 			"auth_type":"token",
-			"password":"examplepassword2",
+			"password":"exampletoken",
 			"deploy":
 			[
 				{
@@ -98,7 +98,7 @@ ddnscd <-v|--version>
 }
 </pre>
 ### Explanation
- * confver: Config Version. Currently 4 for v1.2 and onward.
+ * confver: Config Version. Currently 5 for v1.4-beta2 and onward.
  * log: Filename which logs saved to.
  * loglevel: Optional, default 1. 0: Errors only; 1: Errors and Updates; 2: All messages.
  * tick: Optional, required when runmode=simple/forking. Unit: second. Time of intervals between each run.

@@ -1,5 +1,5 @@
 {
-	"confver": 4, # Version of configuration file. See: versions.json on https://github.com/bilintsui/ddnscd
+	"confver": 5, # Version of configuration file. See: versions.json on https://github.com/bilintsui/ddnscd
 	"log":"/var/log/ddnscd/ddnscd.log",	# Filename which logs saved to.
 	"loglevel":1,	# Optional, default 1. 0: Errors only; 1: Errors and Updates; 2: All messages.
 	"tick":600,	# Optional, required when runmode=simple/forking. Unit: second. Time of intervals between each run.

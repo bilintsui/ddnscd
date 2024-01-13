@@ -1,5 +1,6 @@
 {
-	"latest": 13,
+	"latest-stable": 14,
+	"latest-beta": 16,
 	"versions":[
 		{"name": "1.0", "internal": 1, "conf": 1, "type": "stable"},
 		{"name": "1.1", "internal": 2, "conf": 1, "type": "stable"},
@@ -15,6 +16,7 @@
 		{"name": "1.3-beta1", "internal": 12, "conf": 4, "type": "dev"},
 		{"name": "1.3-beta2", "internal": 13, "conf": 4, "type": "dev"},
 		{"name": "1.3", "internal": 14, "conf": 4, "type": "stable"},
-		{"name": "1.4-beta1", "internal": 15, "conf": 4, "type": "dev"}
+		{"name": "1.4-beta1", "internal": 15, "conf": 4, "type": "dev"},
+		{"name": "1.4-beta2", "internal": 16, "conf": 5, "type": "dev"}
 	]
 }

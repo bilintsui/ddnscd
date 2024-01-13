@@ -1,10 +1,11 @@
 #! /usr/bin/perl
 ### Dynamic DNS Client Daemon
-### (C) 2020-2023 Bilin Tsui, licensed with GNU General Public License version 3. (GNU GPL v3)
+### (c) 2020-2024 DDNSCD contributors.
+### Licensed with GNU General Public License version 3 (GNU GPL v3).
 ### Full text of GNU GPL v3: watch https://www.gnu.org/licenses/gpl-3.0.html.
-# Version: 1.4-beta1
-# Interval Version: 15
-# Config Version: 4
+# Version: 1.4-beta2
+# Interval Version: 16
+# Config Version: 5
 ## Defines
 {
 	use Module::Load;
@@ -16,15 +17,15 @@
 	$pwd=$ENV{'PWD'};
 	$globalcache=();
 	@msgqueue=();
-	$version_internal=15;
-	$version_config=4;
+	$version_internal=16;
+	$version_config=5;
 	$version_major=1;
 	$version_minor=4;
-	$version_additional='(beta1)';
+	$version_additional='(beta2)';
 	$version="$version_major.$version_minor$version_additional";
 	chomp($progname=basename($0));
-	$initmsg="Dynamic DNS Client Daemon v$version\n\nUsage:\n\t$progname <-o|s|f [-p pidfile]> [-c conf]\n\t$progname <-h|--help>\n\t$progname <-v|--version>\n\nSee more, watch: https://github.com/bilintsui/ddnscd\n(C) 2020-2023 Bilin Tsui. Licensed with GNU GPL v3.";
-	$helpmsg="Dynamic DNS Client Daemon v$version\nArguments Help\n\nCommon:\n-h, --help\tShow this message.\n-c, --conf\tOptional, is your configuration file in JSON form.\n\t\tDefault /etc/ddnscd/config.json.\n-v, --version\tShow program version.\n\nRunmodes:\n-o, --once\tRun ddnscd once.\n-s, --simple\tRun ddnscd as a normal service.\n-f, --forking\tRun ddnscd as a daemonized service.\n\nAdditional:\n-p, --pid\t(Forking only) Optional, is your filename to save PID of main process to.\n\t\tDefault /run/ddnscd.pid.\n\nSee more, watch: https://github.com/bilintsui/ddnscd\n(C) 2020-2023 Bilin Tsui. Licensed with GNU GPL v3.";
+	$initmsg="Dynamic DNS Client Daemon v$version\n\nUsage:\n\t$progname <-o|s|f [-p pidfile]> [-c conf]\n\t$progname <-h|--help>\n\t$progname <-v|--version>\n\nSee more, watch: https://github.com/bilintsui/ddnscd\n(c) 2020-2024 DDNSCD contributors. Licensed with GNU GPL v3.";
+	$helpmsg="Dynamic DNS Client Daemon v$version\nArguments Help\n\nCommon:\n-h, --help\tShow this message.\n-c, --conf\tOptional, is your configuration file in JSON form.\n\t\tDefault /etc/ddnscd/config.json.\n-v, --version\tShow program version.\n\nRunmodes:\n-o, --once\tRun ddnscd once.\n-s, --simple\tRun ddnscd as a normal service.\n-f, --forking\tRun ddnscd as a daemonized service.\n\nAdditional:\n-p, --pid\t(Forking only) Optional, is your filename to save PID of main process to.\n\t\tDefault /run/ddnscd.pid.\n\nSee more, watch: https://github.com/bilintsui/ddnscd\n(c) 2020-2024 DDNSCD contributors. Licensed with GNU GPL v3.";
 }
 ## Arguments Processing
 {

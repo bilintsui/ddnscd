@@ -46,6 +46,7 @@ ddnscd <-v|--version>
 		{
 			"root":"example.com",
 			"username":"user@example.com",
+			"auth_type":"key",
 			"password":"examplepassword",
 			"deploy":
 			[
@@ -68,6 +69,7 @@ ddnscd <-v|--version>
 		{
 			"root":"example2.com",
 			"username":"user@example2.com",
+			"auth_type":"token",
 			"password":"examplepassword2",
 			"deploy":
 			[
@@ -108,7 +110,8 @@ ddnscd <-v|--version>
  * deploys: Deploy Information Section.
  >* root: Your root domain. (eg: if you want to deploy "ddns.example.com", use "example.com" here.)
  >* username: Your account name. (In cloudflare, it should be your email address.)
- >* password: Your password. (In cloudflare, it should be your Cloudflare API Key.)
+ >* auth_type: Your authentication type. (If you are using API Key, then use "key". If you are using API Token, then use "token".)
+ >* password: Your password. (In cloudflare, it should be your Cloudflare API Key or your Cloudflare API Token, it depends on which method(auth_type) you used.)
  >* deploy: Domain information and options which you want to update/create.
  >>* name: Domain names which under your root domain. This name should without your root domain name. Use "@" or "" to refer your root domain.
  >>* automode: Optional, use true/false, default true. Program will auto detect your existed DNS records and updated them(legacy method). If disabled, you can ask the program to update IPv4, IPv6 seperately or both through specific interface.

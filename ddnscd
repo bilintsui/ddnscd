@@ -387,9 +387,25 @@
 		}
 		@msgqueue=@tmp_msgqueue;
 	}
+	sub get_auth_curl_headers
+	{
+		my($username,$auth_type,$password)=@_;
+		if($auth_type eq "token")
+		{
+			return ('Content-Type:application/json',"Authorization: Bearer $password");
+		}
+		elsif($auth_type eq "key")
+		{
+			return ('Content-Type:application/json',"X-Auth-Email:$username","X-Auth-Key:$password");
+		}
+		else
+		{
+			die("Error: Invalid authentication type, check your configuration.\n");
+		}
+	}
 	sub cloudflare_zid_lookup
 	{
-		my($username,$password,$update_rootdomain)=@_;
+		my($username,$auth_type,$password,$update_rootdomain)=@_;
 		my($return)='';
 		my($zid)=$globalcache->{$update_rootdomain};
 		if(defined($zid))
@@ -399,7 +415,7 @@
 		else
 		{	
 			my($curl_arguments);
-			my(@curl_headers)=('Content-Type:application/json',"X-Auth-Email:$username","X-Auth-Key:$password");
+			my(@curl_headers)=get_auth_curl_headers($username,$auth_type,$password);
 			$curl_arguments->{url}='https://api.cloudflare.com/client/v4/zones';
 			@{$curl_arguments->{headers}}=@curl_headers;
 			my($decoded_json)=json_curl($curl_arguments);
@@ -425,7 +441,7 @@
 	}
 	sub cloudflare_record_lookup
 	{
-		my($username,$password,$update_domain,$zone_id)=@_;
+		my($username,$auth_type,$password,$update_domain,$zone_id)=@_;
 		my($return)=();
 		my($rid)=$globalcache->{$update_domain};
 		if(defined($rid))
@@ -435,7 +451,7 @@
 		else
 		{
 			my($curl_arguments);
-			my(@curl_headers)=('Content-Type:application/json',"X-Auth-Email:$username","X-Auth-Key:$password");
+			my(@curl_headers)=get_auth_curl_headers($username,$auth_type,$password);
 			$curl_arguments->{url}="https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?name=$update_domain";
 			@{$curl_arguments->{headers}}=@curl_headers;
 			my($decoded_json)=json_curl($curl_arguments);
@@ -459,9 +475,9 @@
 	}
 	sub cloudflare_dns_create
 	{
-		my($username,$password,$zid,$type,$create_domain,$new_ip)=@_;
+		my($username,$auth_type,$password,$zid,$type,$create_domain,$new_ip)=@_;
 		my($curl_arguments);
-		my(@curl_headers)=('Content-Type:application/json',"X-Auth-Email:$username","X-Auth-Key:$password");
+		my(@curl_headers)=get_auth_curl_headers($username,$auth_type,$password);
 		$curl_arguments->{url}="https://api.cloudflare.com/client/v4/zones/$zid/dns_records";
 		@{$curl_arguments->{headers}}=@curl_headers;
 		$curl_arguments->{postdata}='{"type":"'.$type.'","name":"'.$create_domain.'","content":"'.$new_ip.'","ttl":1,"proxied":false}';
@@ -486,9 +502,9 @@
 	}
 	sub cloudflare_dns_update
 	{
-		my($username,$password,$zid,$rid,$type,$update_domain,$new_ip)=@_;
+		my($username,$auth_type,$password,$zid,$rid,$type,$update_domain,$new_ip)=@_;
 		my($curl_arguments);
-		my(@curl_headers)=('Content-Type:application/json',"X-Auth-Email:$username","X-Auth-Key:$password");
+		my(@curl_headers)=get_auth_curl_headers($username,$auth_type,$password);
 		$curl_arguments->{url}="https://api.cloudflare.com/client/v4/zones/$zid/dns_records/$rid";
 		@{$curl_arguments->{headers}}=@curl_headers;
 		$curl_arguments->{putdata}='{"type":"'.$type.'","name":"'.$update_domain.'","content":"'.$new_ip.'"}';
@@ -627,7 +643,7 @@
 	}
 	sub cloudflare_apply_core
 	{
-		my($username,$password,$zid,$type,$domain,$interface,$rid,$rip,$notice)=@_;
+		my($username,$auth_type,$password,$zid,$type,$domain,$interface,$rid,$rip,$notice)=@_;
 		my($lip)=ip_lookup($type,$interface);
 		if($lip==-2)
 		{
@@ -635,14 +651,14 @@
 		}
 		if($lip==-1)
 		{
-			log_process(0,"CF4_LOOKUP(${realdomain} - ${type}): Cannot lookup a vaild IP for current client, max tries reached.\n");
+			log_process(0,"CF4_LOOKUP(${realdomain} - ${type}): Cannot lookup a valid IP for current client, max tries reached.\n");
 			return -1;
 		}
 		if((defined($rid))&&(defined($rip)))
 		{
 			if($rip ne $lip)
 			{
-				my($response)=cloudflare_dns_update($username,$password,$zid,$rid,$type,$domain,$lip);
+				my($response)=cloudflare_dns_update($username,$auth_type,$password,$zid,$rid,$type,$domain,$lip);
 				if($response==0)
 				{
 					if($interface eq "")
@@ -671,7 +687,7 @@
 		}
 		else
 		{
-			my($response)=cloudflare_dns_create($username,$password,$zid,$type,$domain,$lip);
+			my($response)=cloudflare_dns_create($username,$auth_type,$password,$zid,$type,$domain,$lip);
 			if($response==0)
 			{
 				if($interface eq "")
@@ -694,12 +710,13 @@
 		my(@arguments)=@_;
 		my($root)=shift @arguments;
 		my($username)=shift @arguments;
+		my($auth_type)=shift @arguments;
 		my($password)=shift @arguments;
 		my(@deploy)=@arguments;
-		my($zid)=cloudflare_zid_lookup($username,$password,$root);
+		my($zid)=cloudflare_zid_lookup($username,$auth_type,$password,$root);
 		if($zid==-1)
 		{
-			log_process(0,"CF4_FINDZID(${root}): Not a vaild response, please check your account or it just a temporary failure.\n");
+			log_process(0,"CF4_FINDZID(${root}): Not a valid response, please check your account and authenticate type, or it just a temporary failure.\n");
 		}
 		if($zid eq '')
 		{
@@ -729,10 +746,10 @@
 					$recdeploy_automode=1;
 				}
 			}
-			my($records)=cloudflare_record_lookup($username,$password,$realdomain,$zid);
+			my($records)=cloudflare_record_lookup($username,$auth_type,$password,$realdomain,$zid);
 			if($records==-1)
 			{
-				log_process(0,"CF4_FINDREC(${realdomain}): Not a vaild response, please check your account or it just a temporary failure.\n");
+				log_process(0,"CF4_FINDREC(${realdomain}): Not a valid response, please check your account and authenticate type, or it just a temporary failure.\n");
 			}
 			if($recdeploy_automode==1)
 			{
@@ -748,7 +765,7 @@
 						my($rid)=$rec_record->{id};
 						my($rtype)=$rec_record->{type};
 						my($rip)=$rec_record->{ip};
-						cloudflare_apply_core($username,$password,$zid,$rtype,$realdomain,'',$rid,$rip,$recdeploy_notice);
+						cloudflare_apply_core($username,$auth_type,$password,$zid,$rtype,$realdomain,'',$rid,$rip,$recdeploy_notice);
 					}
 				}
 			}
@@ -789,7 +806,7 @@
 					{
 						$rtype='A';
 					}
-					cloudflare_apply_core($username,$password,$zid,$rtype,$realdomain,$recdeploy_interface4,$rid,$rip,$recdeploy_notice);
+					cloudflare_apply_core($username,$auth_type,$password,$zid,$rtype,$realdomain,$recdeploy_interface4,$rid,$rip,$recdeploy_notice);
 				}
 				if(defined($recdeploy_interface6))
 				{
@@ -803,7 +820,7 @@
 					{
 						$rtype='AAAA';
 					}
-					cloudflare_apply_core($username,$password,$zid,$rtype,$realdomain,$recdeploy_interface6,$rid,$rip,$recdeploy_notice);
+					cloudflare_apply_core($username,$auth_type,$password,$zid,$rtype,$realdomain,$recdeploy_interface6,$rid,$rip,$recdeploy_notice);
 				}
 			}
 		}
@@ -814,9 +831,10 @@
 		{
 			my($config_root)=$rec_deploys->{root};
 			my($config_username)=$rec_deploys->{username};
+			my($config_auth_type)=$rec_deploys->{auth_type};
 			my($config_password)=$rec_deploys->{password};
 			my(@config_deploy)=@{$rec_deploys->{deploy}};
-			cloudflare_apply($config_root,$config_username,$config_password,@config_deploy);
+			cloudflare_apply($config_root,$config_username,$config_auth_type,$config_password,@config_deploy);
 		}
 	}
 	sub ifchk

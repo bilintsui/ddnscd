@@ -18,7 +18,8 @@
 		{
 			"root":"example.com",	# Your root domain name.
 			"username":"user@example.com",	# Your username.
-			"password":"examplepassword",	# Your password.
+			"auth_type":"key",	# Authentication type(API token or API key), input "token" or "key".
+			"password":"examplepassword",	# Your API token or API key, depends on "auth_type" field.
 			"deploy":	# List of domain names which you want to deploy to.
 			[
 				{
@@ -41,6 +42,7 @@
 		{
 			"root":"example2.com",
 			"username":"user@example2.com",
+			"auth_type":"token",
 			"password":"examplepassword2",
 			"deploy":
 			[

@@ -1,7 +1,12 @@
-# ddnscd
->**Dynamic DNS Client Daemon**<br/>
->**A Daemonized Client for DDNS Deployment.**<br/>
->**This program is only support cloudflare now.**
+# Dynamic DNS Client Daemon
+A daemonized client for DDNS deployment.
+
+**NOTE:** This program is only support cloudflare now.
+
+## Download
+* For production use: Download source code for latest stable version (e.g. v1.x) in [release page](https://github.com/bilintsui/ddnscd/releases).
+* For testing use: Download source code for latest pre-release version (e.g. v1.x-betax) in [release page](https://github.com/bilintsui/ddnscd/releases).
+* For developer: Clone the master branch.
 
 ## Requirements
 * Linux
@@ -11,8 +16,8 @@
 
 ## Files
 * ddnscd: Main program.
-* config.example.json: config file of ddnscd.
-* ddnscd.service.example: collections of systemd Service Unit files in different runmode.
+* examples/config.json: Example configuration file of ddnscd.
+* examples/ddnscd.service: Example systemd service unit file, run in simple mode.
 
 ## Usage
 <pre>

@@ -1,22 +1,102 @@
 {
-	"latest-stable": 14,
-	"latest-beta": 16,
-	"versions":[
-		{"name": "1.0", "internal": 1, "conf": 1, "type": "stable"},
-		{"name": "1.1", "internal": 2, "conf": 1, "type": "stable"},
-		{"name": "1.2-beta1", "internal": 3, "conf": 2, "type": "dev"},
-		{"name": "1.2-beta2", "internal": 4, "conf": 2, "type": "dev"},
-		{"name": "1.2-beta3", "internal": 5, "conf": 2, "type": "dev"},
-		{"name": "1.2-beta4", "internal": 6, "conf": 2, "type": "dev"},
-		{"name": "1.2-beta5", "internal": 7, "conf": 2, "type": "dev"},
-		{"name": "1.2-beta6", "internal": 8, "conf": 3, "type": "dev"},
-		{"name": "1.2-beta7", "internal": 9, "conf": 3, "type": "dev"},
-		{"name": "1.2-beta8", "internal": 10, "conf": 4, "type": "dev"},
-		{"name": "1.2", "internal": 11, "conf": 4, "type": "stable"},
-		{"name": "1.3-beta1", "internal": 12, "conf": 4, "type": "dev"},
-		{"name": "1.3-beta2", "internal": 13, "conf": 4, "type": "dev"},
-		{"name": "1.3", "internal": 14, "conf": 4, "type": "stable"},
-		{"name": "1.4-beta1", "internal": 15, "conf": 4, "type": "dev"},
-		{"name": "1.4-beta2", "internal": 16, "conf": 5, "type": "dev"}
-	]
+  "latest-stable": 14,
+  "latest-dev": 16,
+  "versions": [
+    {
+      "name": "1.0",
+      "internal": 1,
+      "conf": 1,
+      "type": "stable"
+    },
+    {
+      "name": "1.1",
+      "internal": 2,
+      "conf": 1,
+      "type": "stable"
+    },
+    {
+      "name": "1.2-beta1",
+      "internal": 3,
+      "conf": 2,
+      "type": "dev"
+    },
+    {
+      "name": "1.2-beta2",
+      "internal": 4,
+      "conf": 2,
+      "type": "dev"
+    },
+    {
+      "name": "1.2-beta3",
+      "internal": 5,
+      "conf": 2,
+      "type": "dev"
+    },
+    {
+      "name": "1.2-beta4",
+      "internal": 6,
+      "conf": 2,
+      "type": "dev"
+    },
+    {
+      "name": "1.2-beta5",
+      "internal": 7,
+      "conf": 2,
+      "type": "dev"
+    },
+    {
+      "name": "1.2-beta6",
+      "internal": 8,
+      "conf": 3,
+      "type": "dev"
+    },
+    {
+      "name": "1.2-beta7",
+      "internal": 9,
+      "conf": 3,
+      "type": "dev"
+    },
+    {
+      "name": "1.2-beta8",
+      "internal": 10,
+      "conf": 4,
+      "type": "dev"
+    },
+    {
+      "name": "1.2",
+      "internal": 11,
+      "conf": 4,
+      "type": "stable"
+    },
+    {
+      "name": "1.3-beta1",
+      "internal": 12,
+      "conf": 4,
+      "type": "dev"
+    },
+    {
+      "name": "1.3-beta2",
+      "internal": 13,
+      "conf": 4,
+      "type": "dev"
+    },
+    {
+      "name": "1.3",
+      "internal": 14,
+      "conf": 4,
+      "type": "stable"
+    },
+    {
+      "name": "1.4-beta1",
+      "internal": 15,
+      "conf": 4,
+      "type": "dev"
+    },
+    {
+      "name": "1.4-beta2",
+      "internal": 16,
+      "conf": 5,
+      "type": "dev"
+    }
+  ]
 }
